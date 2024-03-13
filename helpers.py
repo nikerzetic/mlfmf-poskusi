@@ -130,9 +130,34 @@ def load_library(library_name):
         return [], nx.MultiDiGraph()
     return load_entries(entry_dir), load_graph(network_file)
 
+def split_network_into_nodes_and_links(network_file_path):
+    network_directory = os.path.dirname(os.path.abspath(network_file_path))
+    nodes_file = open(os.path.join(network_directory, "nodes.tsv"), "w", encoding="utf-8")
+    links_file = open(os.path.join(network_directory, "links.tsv"), "w", encoding="utf-8")
+    nodes_file.write("node\tproperties")
+    links_file.write("source\tsink\tedge_type\tproperties")
+
+    print("Splitting the network file into separate nodes and links files...")
+    with open(network_file_path, encoding="utf-8") as network_file:
+        for line in network_file:
+            parts = line.split("\t")[1:]
+            parts = [d.strip() for d in parts]  # check this
+            if line.startswith("node"):
+                node, properties = parts
+                nodes_file.write(f"\n{node}\t{properties}")
+            else:
+                source, sink, edge_type, properties = parts
+                links_file.write(f"\n{source}\t{sink}\t{edge_type}\t{properties}")
+
+    nodes_file.close()
+    links_file.close()
+
+
+
 
 if __name__ == "__main__":
     for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
         print(lib)
-        entries, network = load_library(lib)
-        print()
+    #     entries, network = load_library(lib)
+    #     print()
+        split_network_into_nodes_and_links(f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
