@@ -2,6 +2,8 @@ import networkx as nx
 import tqdm
 import os
 import zipfile
+import shutil
+import random
 
 
 class EntryNode:
@@ -97,7 +99,8 @@ def load_graph(graph_file):
                 source, sink, edge_type, properties = parts
                 properties = eval(properties)
                 graph.add_edge(source, sink, edge_type, **properties)
-    print(f"Loaded G(V, E) where (|V|, |E|) = ({len(graph.nodes)}, {len(graph.edges)})")
+    print(
+        f"Loaded G(V, E) where (|V|, |E|) = ({len(graph.nodes)}, {len(graph.edges)})")
     return graph
 
 
@@ -109,31 +112,46 @@ def try_unzip(zip_file, entry_dir):
                 z.extract(file_info, entry_dir)
 
 
-def load_library(library_name):
+def _library_paths(library_name: str):
     entry_dir = f"{library_name}/entries"
     zip_file = f"{library_name}/entries.zip"
     network_file = f"{library_name}/network.csv"
+    return entry_dir, zip_file, network_file
+
+
+def _library_invalid(library_name):
+    entry_dir, _, network_file = _library_paths(library_name)
+    bad = False
     if not os.path.exists(entry_dir):
-        if os.path.exists(zip_file):
-            print(f"Did not found {entry_dir}, but {zip_file} exists. Unzipping ...")
-            try_unzip(zip_file, entry_dir)
-        else:
-            print(f"Did not found {entry_dir} nor {zip_file}.")
-    bad = False	
-    if not os.path.exists(entry_dir):
-        print(f"Did not found {entry_dir}.")
+        print(f"Did not find {entry_dir}.")
         bad = True
     if not os.path.exists(network_file):
-        print(f"Did not found {network_file}.")
+        print(f"Did not find {network_file}.")
         bad = True
-    if bad:
+    return bad
+
+
+def load_library(library_name):
+    entry_dir, zip_file, network_file = _library_paths(library_name)
+    if not os.path.exists(entry_dir):
+        if os.path.exists(zip_file):
+            print(
+                f"Did not find {entry_dir}, but {zip_file} exists. Unzipping ...")
+            try_unzip(zip_file, entry_dir)
+        else:
+            print(f"Did not find {entry_dir} nor {zip_file}.")
+
+    if _library_invalid(library_name):
         return [], nx.MultiDiGraph()
     return load_entries(entry_dir), load_graph(network_file)
 
+
 def split_network_into_nodes_and_links(network_file_path):
     network_directory = os.path.dirname(os.path.abspath(network_file_path))
-    nodes_file = open(os.path.join(network_directory, "nodes.tsv"), "w", encoding="utf-8")
-    links_file = open(os.path.join(network_directory, "links.tsv"), "w", encoding="utf-8")
+    nodes_file = open(os.path.join(network_directory,
+                      "nodes.tsv"), "w", encoding="utf-8")
+    links_file = open(os.path.join(network_directory,
+                      "links.tsv"), "w", encoding="utf-8")
     nodes_file.write("node\tproperties")
     links_file.write("source\tsink\tedge_type\tproperties")
 
@@ -147,17 +165,98 @@ def split_network_into_nodes_and_links(network_file_path):
                 nodes_file.write(f"\n{node}\t{properties}")
             else:
                 source, sink, edge_type, properties = parts
-                links_file.write(f"\n{source}\t{sink}\t{edge_type}\t{properties}")
+                links_file.write(
+                    f"\n{source}\t{sink}\t{edge_type}\t{properties}")
 
     nodes_file.close()
     links_file.close()
 
 
+def _check_dirs_exist_or_create(dirs_list):
+    for dir in dirs_list:
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+
+def _code2vec_train_val_test_dirs(path):
+    new_dir = os.path.join(
+        path, "code2vec")
+    train_dir = os.path.join(new_dir, "train")
+    val_dir = os.path.join(new_dir, "val")
+    test_dir = os.path.join(new_dir, "test")
+    return train_dir, val_dir, test_dir
+
+
+def copy_entries_into_train_val_test_directories(
+        library_name: str,
+        train_mask: list[int],
+        val_mask: list[int],
+        test_mask: list[int],
+):
+    """Copy entries of the specified library into separate train, val and test directories, as required by code2vec.
+
+    """
+    # TODO: test for overlap of masks
+    # TODO: ensure ordered lists
+    entry_dir, _, _ = _library_paths(library_name)
+    train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
+        os.path.dirname(os.path.abspath(entry_dir)))
+    _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
+    train_pointer,  val_pointer, test_pointer = 0, 0, 0  # we only traverse lists once
+    for i, entry in tqdm.tqdm(enumerate(os.listdir(entry_dir))):
+        if i in train_mask[train_pointer]:
+            shutil.copy(entry, train_dir)
+            train_pointer += 1
+        if i in val_mask[val_pointer]:
+            shutil.copy(entry, val_dir)
+            val_pointer += 1
+        if i in test_mask[test_pointer]:
+            shutil.copy(entry, test_dir)
+            test_pointer += 1
+
+
+def probibalistic_copy_entries_into_train_val_test_directories(
+        library_name: str,
+        val_probability: float,
+        test_probability: float,
+):
+    """Randomly copy entries of the specified library into separate train, val and test directories, as required by code2vec."""
+    if val_probability + test_probability > 1:
+        raise ValueError("The probabilities sum up to {}".format(
+            val_probability + test_probability))
+    entry_dir, _, _ = _library_paths(library_name)
+    train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
+        os.path.dirname(os.path.abspath(entry_dir)))
+    _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
+    train_counter, val_counter, test_counter = 0, 0, 0
+
+    print("Splitting entries into separate train, val, test directories...")
+    for entry in tqdm.tqdm(os.listdir(entry_dir)):
+        entry = os.path.join(entry_dir, entry)
+        u = random.random()
+        if u <= val_probability:
+            shutil.copy(entry, val_dir)
+            val_counter += 1
+        elif u <= val_probability + test_probability:
+            shutil.copy(entry, test_dir)
+            test_counter += 1
+        else:
+            shutil.copy(entry, train_dir)
+            train_counter += 1
+    print(
+        "\nTotal count:",
+        "\n\tTrain: ", train_counter,
+        "\n\tVal: ", val_counter,
+        "\n\tTest: ", test_counter,
+    )
 
 
 if __name__ == "__main__":
-    for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
-        print(lib)
+    # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
+    #     print(lib)
     #     entries, network = load_library(lib)
     #     print()
-        split_network_into_nodes_and_links(f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+    # split_network_into_nodes_and_links(
+    #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+    probibalistic_copy_entries_into_train_val_test_directories(
+        "stdlib", 0.2, 0.2)
