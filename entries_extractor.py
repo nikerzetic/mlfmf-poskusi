@@ -5,6 +5,7 @@ import sys
 import tqdm
 import networkx as nx
 from argparse import ArgumentParser
+from extract import concatenate_dir_files
 
 
 def hash_string(s: str):
@@ -15,14 +16,15 @@ def hash_string(s: str):
         return 0
     sum = 0
     for c in s:
-        sum = 31 * sum + ord(c) # ord returns the value of char c
+        sum = 31 * sum + ord(c)  # ord returns the value of char c
     return sum
 
 
-def hash_path(G: nx.Graph, path: list): 
-    return hash_string("/".join([G.nodes[id]["type"] for id in path])) # path of types
+def hash_path(G: nx.Graph, path: list):
+    # path of types
+    return hash_string("/".join([G.nodes[id]["type"] for id in path]))
     # return hash_string("/".join(path[1:-1]))
-    #TODO: better path embedding
+    # TODO: better path embedding
 
 
 def generate_path_features_for_function(G: nx.Graph, leaves: list[str]):
@@ -38,8 +40,8 @@ def generate_path_features_for_function(G: nx.Graph, leaves: list[str]):
             path = nx.shortest_path(G, source=leaves[i], target=leaves[j])
             features.append(
                 s["desc"] + "," + str(hash_path(G, path)) + "," + t["desc"]
-                ) #TODO here we define the path separator
-            #TODO should be source, path, sink
+            )  # TODO here we define the path separator
+            # TODO should be source, path, sink
     return features
 
 
@@ -54,7 +56,7 @@ def format_as_label(s: str):
         else:
             new_s += c
     new_s = new_s.replace("||", "|")
-    #TODO remove "|" preceding the string
+    # TODO remove "|" preceding the string
     return new_s
 
 
@@ -75,15 +77,15 @@ def extract_graph(file_path):
         node_children = eval(parts[3])
         children[node_id] = node_children
         G.add_node(
-                    node_id, 
-                    type=node_type.replace(":", ""), 
-                    desc=format_as_label(node_description)
-                    )
+            node_id,
+            type=node_type.replace(":", ""),
+            desc=format_as_label(node_description)
+        )
         if not node_children:
             leaves.append(node_id)
         if name:
             continue
-        #TODO make sure the first :name node is the name of the function
+        # TODO make sure the first :name node is the name of the function
         if node_type == ":name":
             name = format_as_label(node_description)
     file.close()
@@ -93,7 +95,8 @@ def extract_graph(file_path):
     return G, leaves, name
 
 
-def extract_single_entry_file(file_path, args): # mirror original extractSingleFile
+# mirror original extractSingleFile
+def extract_single_entry_file(file_path, args):
     # print("Extracting file: ", file_path)
     graph, leaves, name = extract_graph(file_path)
     # print("Extracted graph: ", graph)
@@ -102,7 +105,8 @@ def extract_single_entry_file(file_path, args): # mirror original extractSingleF
     #     separator = "\n\t"
     # print("Generating path features for: ", name)
     features = generate_path_features_for_function(graph, leaves)
-    return name + separator + separator.join(features) #TODO separators as args
+    # TODO separators as args
+    return name + separator + separator.join(features)
 
 
 def extract_file_features(file, args):
@@ -112,25 +116,28 @@ def extract_file_features(file, args):
     if not file.endswith(".dag"):
         return
     entry_file = os.path.join(args.dir, file)
+    tmp_file = os.path.join(args.tmpdir, str(os.getpid()))
     # LOGS = open(os.path.abspath("D:\\Nik\\Projects\\mlfmf-poskusi\\LOGS.txt"), "a", encoding="utf-8")
-    print(
-        extract_single_entry_file(entry_file, args),
-        # file=LOGS
+    with open(tmp_file, "a", encoding="utf-8") as tmp:
+        print(
+            extract_single_entry_file(entry_file, args),
+            file=tmp,
         )
     # LOGS.close()
-    #TODO print to file
+    # TODO print to file
 
 
 def extract_dir(args):
     try:
         with multiprocessing.Pool(4) as p:
             result = p.starmap_async(extract_file_features, zip(os.listdir(args.dir),
-                itertools.repeat(args), 
-                # itertools.repeat(tmp_dir), 
-                ))
+                                                                itertools.repeat(
+                                                                    args),
+                                                                # itertools.repeat(tmp_dir),
+                                                                ))
             result.get(timeout=None)
     except Exception as e:
-        print(e) #TODO file parameter for logs
+        print(e)  # TODO file parameter for logs
 
 
 if __name__ == "__main__":
@@ -143,6 +150,7 @@ if __name__ == "__main__":
                         dest="num_threads", required=False, default=64)
     parser.add_argument("-dir", "--dir", dest="dir", required=False)
     parser.add_argument("-file", "--file", dest="file", required=False)
+    parser.add_argument("-tmpdir", "--tmpdir", dest="tmpdir", required=False)
 
     args = parser.parse_args()
 
@@ -154,4 +162,3 @@ if __name__ == "__main__":
         # Debug
         args.dir = ".\\stdlib\\code2vec\\train\\"
         extract_dir(args)
-        

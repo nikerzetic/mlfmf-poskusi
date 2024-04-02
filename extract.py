@@ -18,18 +18,33 @@ def ParallelExtractDir(args, tmpdir, dir_):
     ExtractFeaturesForDir(args, tmpdir, dir_, "")
 
 
+def concatenate_dir_files(dir): #TODO move to helpers so both extract and entries_extractor can access
+    files = os.listdir(dir)
+    for file in files:
+        path = os.path.join(os.path.abspath(dir), file)
+        os.system(f"type %s" % path)
+        # os.remove(path)
+
+
 def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
 
     # command = ['java', '-cp', args.jar, 'JavaExtractor.App',
     #            '--max_path_length', str(args.max_path_length), '--max_path_width', str(args.max_path_width),
     #            '--dir', dir_, '--num_threads', str(args.num_threads)]
-    command = ['python', 'entries_extractor.py',
-               '--max_path_length', str(
-                   args.max_path_length), '--max_path_width', str(args.max_path_width),
-               '--dir', dir_, '--num_threads', str(args.num_threads)]
+    
 
     def kill(process): return process.kill()
     outputFileName = tmpdir + prefix + os.path.basename(os.path.abspath(dir_))
+    out_dir = tmpdir + prefix + os.path.basename(os.path.abspath(dir_)) + "sub"
+    if os.path.exists(out_dir):
+        shutil.rmtree(out_dir, ignore_errors=True)
+    os.makedirs(out_dir)
+
+    command = ['python', 'entries_extractor.py',
+               '--max_path_length', str(
+                   args.max_path_length), '--max_path_width', str(args.max_path_width),
+               '--dir', dir_, '--num_threads', str(args.num_threads), '--tmpdir', out_dir]
+
     # print(outputFileName)
     # outputFileName = tmpdir + prefix + dir_.split('/')[-1]
     failed = False
@@ -51,17 +66,14 @@ def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
             for subdir in subdirs:
                 ExtractFeaturesForDir(
                     args, subdir, prefix + dir_.split('/')[-1] + '_')
+                
+        concatenate_dir_files(out_dir)
 
     if failed and os.path.exists(outputFileName):
         os.remove(outputFileName)
 
 
-def concatenate_dir_files(dir): #TODO move to helpers so both extract and entries_extractor can access
-    files = os.listdir(dir)
-    for file in files:
-        path = os.path.join(os.path.abspath(dir), file)
-        os.system(f"type %s" % path)
-        os.remove(path)
+
 
 
 def ExtractFeaturesForDirsList(args, dirs):
