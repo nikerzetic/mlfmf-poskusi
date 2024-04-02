@@ -258,5 +258,69 @@ if __name__ == "__main__":
     #     print()
     # split_network_into_nodes_and_links(
     #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
-    probibalistic_copy_entries_into_train_val_test_directories(
-        "stdlib", 0.2, 0.2)
+
+    # probibalistic_copy_entries_into_train_val_test_directories(
+    #     "stdlib", 0.2, 0.2)
+
+    import math
+    BILLION = 1000000000
+    leaves = 0
+    entries = 0
+    paths_carry = 0
+    paths_billions = 0
+    name_paths_carry = 0
+    name_paths_billions = 0
+    max_leaves = 0
+    max_entry = None
+    library = "D:\\Nik\\Projects\\mlfmf-poskusi\\stdlib"
+    entries_dir = os.path.join(library, "entries")
+    log = open(os.path.join(library, "entries_stats.tsv"), "w", encoding="utf-8")
+    log.write("file_name\tnum_nodes\tnum_edges\tnum_leaves\tnum_names")
+    print("Calculating total number of paths...")
+    for file in tqdm.tqdm(os.listdir(entries_dir)):
+        if not file.endswith(".dag"):
+            continue
+        entries += 1
+        entry_nodes = 0
+        entry_edges = 0
+        entry_leaves = 0
+        entry_names = 0
+        with open(os.path.join(entries_dir, file), "r", encoding="utf-8") as f:
+            root: EntryNode | None = None
+            f.readline()  # id, type, description, children ids
+            for line in f:
+                entry_nodes += 1
+                parts = line.split("\t")
+                node_type = parts[1]
+                node_children = eval(parts[3])
+                if not node_children:
+                    leaves += 1
+                    entry_leaves += 1
+                else:
+                    entry_edges += len(node_children)
+                if node_type == ":name":
+                    entry_names += 1
+                
+        log.write(f"\n{file}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}")
+        paths_carry += math.factorial(entry_leaves) 
+        name_paths_carry += math.factorial(entry_names)
+        if paths_carry >= BILLION:
+            paths_billions += 1
+            paths_carry -= BILLION
+        if name_paths_carry >= BILLION:
+            name_paths_billions += 1
+            name_paths_carry -= BILLION
+        if entry_leaves > max_leaves:
+            max_leaves = entry_leaves
+            max_entry = file
+            
+    log.close()
+    print(
+        "-------REPORT-------",
+        "\nTotal number of leaves: ", leaves,
+        f"\n\tOn average {leaves / entries} leaves for each entry.",
+        "\n\tMax leaves: ", max_leaves,
+        "\n\tEntry with most leaves: ", max_entry,
+        "\nTotal paths (billions): ", paths_billions,
+        "\nTotal paths between :name entries (billions): ", name_paths_billions,
+    )
