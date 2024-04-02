@@ -56,6 +56,14 @@ def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
         os.remove(outputFileName)
 
 
+def concatenate_dir_files(dir): #TODO move to helpers so both extract and entries_extractor can access
+    files = os.listdir(dir)
+    for file in files:
+        path = os.path.join(os.path.abspath(dir), file)
+        os.system(f"type %s" % path)
+        os.remove(path)
+
+
 def ExtractFeaturesForDirsList(args, dirs):
     tmp_dir = f"./tmp/feature_extractor{os.getpid()}/"
     if os.path.exists(tmp_dir):
@@ -73,11 +81,12 @@ def ExtractFeaturesForDirsList(args, dirs):
         except multiprocessing.TimeoutError:
             continue
 
-        output_files = os.listdir(tmp_dir)
-        for f in output_files:
-            os.system("type %s" % os.path.join(os.path.abspath(tmp_dir), f))
-            # os.system("cat %s/%s" % (tmp_dir, f)) # Linux command that doesn't work in Powershell
-            os.remove(os.path.join(tmp_dir, f))
+        # output_files = os.listdir(tmp_dir)
+        concatenate_dir_files(tmp_dir)
+        # for f in output_files:
+        #     os.system("type %s" % os.path.join(os.path.abspath(tmp_dir), f))
+        #     # os.system("cat %s/%s" % (tmp_dir, f)) # Linux command that doesn't work in Powershell
+        #     os.remove(os.path.join(os.path.abspath(tmp_dir), f))
 
 
 if __name__ == '__main__':
