@@ -263,19 +263,29 @@ if __name__ == "__main__":
     #     "stdlib", 0.2, 0.2)
 
     import math
+    import pandas as pd
+
     BILLION = 1000000000
     leaves = 0
     entries = 0
-    paths_carry = 0
-    paths_billions = 0
-    name_paths_carry = 0
-    name_paths_billions = 0
+    paths = 0
+    name_paths = 0
     max_leaves = 0
     max_entry = None
+    functions = 0
+    function_paths = 0
     library = "D:\\Nik\\Projects\\mlfmf-poskusi\\stdlib"
     entries_dir = os.path.join(library, "entries")
     log = open(os.path.join(library, "entries_stats.tsv"), "w", encoding="utf-8")
-    log.write("file_name\tnum_nodes\tnum_edges\tnum_leaves\tnum_names")
+    log.write("file_name\tentry_type\tnum_nodes\tnum_edges\tnum_leaves\tnum_names")
+
+    labels_dict = {}
+    with open(os.path.join(library, "nodes.tsv"), "r", encoding="utf-8") as f:
+        f.readline()
+        for line in f:
+            parts = line.split("\t")
+            labels_dict[str(parts[0])] = eval(parts[1])
+
     print("Calculating total number of paths...")
     for file in tqdm.tqdm(os.listdir(entries_dir)):
         if not file.endswith(".dag"):
@@ -286,41 +296,70 @@ if __name__ == "__main__":
         entry_leaves = 0
         entry_names = 0
         with open(os.path.join(entries_dir, file), "r", encoding="utf-8") as f:
-            root: EntryNode | None = None
             f.readline()  # id, type, description, children ids
+            name = None
             for line in f:
                 entry_nodes += 1
                 parts = line.split("\t")
                 node_type = parts[1]
                 node_children = eval(parts[3])
+                
                 if not node_children:
                     leaves += 1
                     entry_leaves += 1
                 else:
                     entry_edges += len(node_children)
                 if node_type == ":name":
+                    if not name:
+                        name = str(parts[2]).replace('"', '')
                     entry_names += 1
-                
-        log.write(f"\n{file}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}")
-        paths_carry += math.factorial(entry_leaves) 
-        name_paths_carry += math.factorial(entry_names)
-        if paths_carry >= BILLION:
-            paths_billions += 1
-            paths_carry -= BILLION
-        if name_paths_carry >= BILLION:
-            name_paths_billions += 1
-            name_paths_carry -= BILLION
+
+        entry_type = labels_dict[name]["label"].replace(":","")
+
+        if entry_type == "function":
+            functions += 1
+            function_paths += math.factorial(entry_leaves-1)
+            # if function_paths_carry >= BILLION:
+            #     function_paths_billions += function_paths_carry // BILLION
+            #     function_paths_carry = function_paths_carry % BILLION
+                            
+        log.write(f"\n{file}\t{entry_type}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}")
+        paths += math.factorial(entry_leaves-1) 
+        name_paths += math.factorial(entry_names-1)
+        # if paths_carry >= BILLION:
+        #     paths_billions += paths_carry // BILLION
+        #     paths_carry = paths_carry % BILLION
+        # if name_paths_carry >= BILLION:
+        #     name_paths_billions += name_paths_carry // BILLION
+        #     name_paths_carry = name_paths_carry % BILLION
         if entry_leaves > max_leaves:
             max_leaves = entry_leaves
             max_entry = file
             
     log.close()
+
+    print("Making numbers printable...")
+    paths_power = 0
+    name_paths_power = 0
+    function_paths_power = 0
+    while paths > 10:
+        paths_power += 1
+        paths = paths // 10
+    while name_paths > 10:
+        name_paths_power += 1
+        name_paths = name_paths // 10
+    while function_paths > 10:
+        function_paths_power += 1
+        function_paths = function_paths // 10
+    
     print(
         "-------REPORT-------",
         "\nTotal number of leaves: ", leaves,
         f"\n\tOn average {leaves / entries} leaves for each entry.",
         "\n\tMax leaves: ", max_leaves,
         "\n\tEntry with most leaves: ", max_entry,
-        "\nTotal paths (billions): ", paths_billions,
-        "\nTotal paths between :name entries (billions): ", name_paths_billions,
+        f"\nTotal paths (billions): {paths} * 10^{paths_power}", 
+        f"\nTotal paths between :name entries (billions): {name_paths} * 10^{name_paths_power}",
+        f"\nTotal paths in :function entries (billions): {function_paths} * 10^{function_paths_power}", 
+        "\n\tTotal :function entries: ", functions,
     )
