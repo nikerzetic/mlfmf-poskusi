@@ -27,19 +27,101 @@ def hash_path(G: nx.Graph, path: list):
     # TODO: better path embedding
 
 
-def generate_path_features_for_function(G: nx.Graph, leaves: list[str]):
+def get_tree_stack(G: nx.DiGraph, node):
+    stack = []
+    current = [node]
+    while current:
+        stack.append(current[0])
+        current = list(G.pred[current[0]].keys())  # TODO more ellegant
+    return stack
+
+
+def find_common_prefix(stack_u: list, stack_v: list):
+    common_prefix = 0
+    current_ancestor_index_u = len(stack_u) - 1
+    current_ancestor_index_v = len(stack_v) - 1
+    while (
+        current_ancestor_index_u >= 0
+        and current_ancestor_index_v >= 0
+        and stack_u[current_ancestor_index_u] == stack_v[current_ancestor_index_v]
+    ):
+        common_prefix += 1
+        current_ancestor_index_u -= 1
+        current_ancestor_index_v -= 1
+    return common_prefix, current_ancestor_index_u, current_ancestor_index_v
+
+
+def path_length(stack_u: list, stack_v: list, common_prefix: int):
+    return len(stack_u) + len(stack_v) - 2 * common_prefix
+
+
+def path_width(
+    stack_u: list,
+    stack_v: list,
+    current_ancestor_index_u: int,
+    current_ancestor_index_v: int,
+):
+    return stack_u[current_ancestor_index_u] - stack_v[current_ancestor_index_v]
+
+
+def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None):
+    start_symbol = "("
+    end_symbol = ")"
+    up_symbol = "^"
+    down_symbol = "_"
+
+    stack_s = get_tree_stack(G, s)
+    stack_t = get_tree_stack(G, t)
+    common_prefix, i_s, i_t = find_common_prefix(stack_s, stack_t)
+
+    if path_length(stack_s, stack_t, common_prefix) > max_length:
+        return None
+    if path_width(stack_s, stack_t, i_s, i_t) > max_width:
+        return None
+
+    path = ""
+    for i in range(1, len(stack_s) - common_prefix):
+        current_id = stack_s[i]
+        child_id = stack_s[i - 1]
+        # parent_id = stack_s[i + 1]  # TODO FeatureExtractor line 158
+        node_type = G.nodes[current_id]["type"]
+        path += start_symbol + node_type + str(child_id) + end_symbol + up_symbol
+
+    for i in [len(stack_s) - common_prefix]:  # TODO this is ugly - for symetry
+        current_id = stack_s[i]
+        child_id = stack_s[i - 1]
+        node_type = G.nodes[current_id]["type"]
+        path += start_symbol + node_type + str(child_id) + end_symbol
+
+    for i in range(len(stack_t) - common_prefix - 1, 0, -1):
+        current_id = stack_t[i]
+        child_id = stack_t[i - 1]
+        node_type = G.nodes[current_id]["type"]
+        path += down_symbol + start_symbol + node_type + str(child_id) + end_symbol
+
+    return path
+
+
+def generate_path_features_for_function(
+    G: nx.DiGraph, leaves: list[str], max_path_length, max_path_width
+):
     features = []
     for i in range(len(leaves)):
-        for j in range(i+1, len(leaves)):
+        for j in range(i + 1, len(leaves)):
             s = G.nodes[leaves[i]]
             t = G.nodes[leaves[j]]
             # print(
             #     "Source: ", s,
             #       "Sink: ", t,
             #       )
-            path = nx.shortest_path(G, source=leaves[i], target=leaves[j])
+            # path = nx.shortest_path(G, source=leaves[i], target=leaves[j])
+            path = generate_path(
+                G, leaves[i], leaves[j], max_path_length, max_path_width
+            )
+            if not path:
+                continue
             features.append(
-                s["desc"] + "," + str(hash_path(G, path)) + "," + t["desc"]
+                s["desc"] + "," + str(hash_string(path)) + "," + t["desc"]
             )  # TODO here we define the path separator
             # TODO should be source, path, sink
     return features
@@ -63,7 +145,7 @@ def format_as_label(s: str):
 def extract_graph(file_path):
     # print("Extracting graph: ", file_path)
     children = {}
-    G = nx.Graph()
+    G = nx.DiGraph()
     leaves = []
     name = None
     file = open(file_path, "r", encoding="utf-8")
@@ -79,9 +161,9 @@ def extract_graph(file_path):
         G.add_node(
             node_id,
             type=node_type.replace(":", ""),
-            desc=format_as_label(node_description)
+            desc=format_as_label(node_description),
         )
-        if not node_children:
+        if node_type == ":name" and not node_children:
             leaves.append(node_id)
         if name:
             continue
@@ -104,9 +186,13 @@ def extract_single_entry_file(file_path, args):
     # if args.pretty_print:
     #     separator = "\n\t"
     # print("Generating path features for: ", name)
-    features = generate_path_features_for_function(graph, leaves)
+    features = generate_path_features_for_function(
+        graph, leaves, int(args.max_path_length), int(args.max_path_width)
+    )
     # TODO separators as args
-    return name + separator + separator.join(features)
+    if features:
+        return name + separator + separator.join(features)
+    return None #TODO should log how many were skipped
 
 
 def extract_file_features(file, args):
@@ -119,8 +205,11 @@ def extract_file_features(file, args):
     tmp_file = os.path.join(args.tmpdir, str(os.getpid()))
     # LOGS = open(os.path.abspath("D:\\Nik\\Projects\\mlfmf-poskusi\\LOGS.txt"), "a", encoding="utf-8")
     with open(tmp_file, "a", encoding="utf-8") as tmp:
+        to_print = extract_single_entry_file(entry_file, args)
+        if not to_print:
+            return #TODO should log how many were skipped
         print(
-            extract_single_entry_file(entry_file, args),
+            to_print,
             file=tmp,
         )
     # LOGS.close()
@@ -130,11 +219,14 @@ def extract_file_features(file, args):
 def extract_dir(args):
     try:
         with multiprocessing.Pool(4) as p:
-            result = p.starmap_async(extract_file_features, zip(os.listdir(args.dir),
-                                                                itertools.repeat(
-                                                                    args),
-                                                                # itertools.repeat(tmp_dir),
-                                                                ))
+            result = p.starmap_async(
+                extract_file_features,
+                zip(
+                    os.listdir(args.dir),
+                    itertools.repeat(args),
+                    # itertools.repeat(tmp_dir),
+                ),
+            )
             result.get(timeout=None)
     except Exception as e:
         print(e)  # TODO file parameter for logs
@@ -142,12 +234,23 @@ def extract_dir(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-maxlen", "--max_path_length",
-                        dest="max_path_length", required=False, default=8)
-    parser.add_argument("-maxwidth", "--max_path_width",
-                        dest="max_path_width", required=False, default=2)
-    parser.add_argument("-threads", "--num_threads",
-                        dest="num_threads", required=False, default=64)
+    parser.add_argument(
+        "-maxlen",
+        "--max_path_length",
+        dest="max_path_length",
+        required=False,
+        default=16,
+    )
+    parser.add_argument(
+        "-maxwidth",
+        "--max_path_width",
+        dest="max_path_width",
+        required=False,
+        default=2,
+    )
+    parser.add_argument(
+        "-threads", "--num_threads", dest="num_threads", required=False, default=64
+    )
     parser.add_argument("-dir", "--dir", dest="dir", required=False)
     parser.add_argument("-file", "--file", dest="file", required=False)
     parser.add_argument("-tmpdir", "--tmpdir", dest="tmpdir", required=False)
@@ -161,4 +264,5 @@ if __name__ == "__main__":
     else:
         # Debug
         args.dir = ".\\stdlib\\code2vec\\train\\"
+        args.tmpdir = "D:\\Nik\\Projects\\mlfmf-poskusi\\tmp\\debug\\"
         extract_dir(args)
