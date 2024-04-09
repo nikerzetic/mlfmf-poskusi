@@ -23,7 +23,8 @@ def concatenate_dir_files(dir): #TODO move to helpers so both extract and entrie
     for file in files:
         path = os.path.join(os.path.abspath(dir), file)
         os.system(f"type %s" % path)
-        # os.remove(path)
+        os.remove(path)
+    shutil.rmtree(dir)
 
 
 def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
@@ -93,7 +94,7 @@ def ExtractFeaturesForDirsList(args, dirs):
         except multiprocessing.TimeoutError:
             continue
 
-        # output_files = os.listdir(tmp_dir)
+        output_files = os.listdir(tmp_dir)
         concatenate_dir_files(tmp_dir)
         # for f in output_files:
         #     os.system("type %s" % os.path.join(os.path.abspath(tmp_dir), f))

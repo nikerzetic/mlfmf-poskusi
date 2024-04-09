@@ -79,27 +79,27 @@ def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None
     if path_width(stack_s, stack_t, i_s, i_t) > max_width:
         return None
 
-    path = ""
+    path = []
     for i in range(1, len(stack_s) - common_prefix):
         current_id = stack_s[i]
         child_id = stack_s[i - 1]
         # parent_id = stack_s[i + 1]  # TODO FeatureExtractor line 158
         node_type = G.nodes[current_id]["type"]
-        path += start_symbol + node_type + str(child_id) + end_symbol + up_symbol
+        path.append(start_symbol + node_type + str(child_id) + end_symbol + up_symbol)
 
     for i in [len(stack_s) - common_prefix]:  # TODO this is ugly - for symetry
         current_id = stack_s[i]
         child_id = stack_s[i - 1]
         node_type = G.nodes[current_id]["type"]
-        path += start_symbol + node_type + str(child_id) + end_symbol
+        path.append(start_symbol + node_type + str(child_id) + end_symbol)
 
     for i in range(len(stack_t) - common_prefix - 1, 0, -1):
         current_id = stack_t[i]
         child_id = stack_t[i - 1]
         node_type = G.nodes[current_id]["type"]
-        path += down_symbol + start_symbol + node_type + str(child_id) + end_symbol
+        path.append(down_symbol + start_symbol + node_type + str(child_id) + end_symbol)
 
-    return path
+    return "".join(path) # Join is faster than +, because str is immutable
 
 
 def generate_path_features_for_function(
@@ -229,7 +229,7 @@ def extract_dir(args):
             )
             result.get(timeout=None)
     except Exception as e:
-        print(e)  # TODO file parameter for logs
+        print(f"Exception while extracting dir {args.dir}: ", e)  # TODO file parameter for logs
 
 
 if __name__ == "__main__":
