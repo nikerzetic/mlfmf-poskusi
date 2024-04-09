@@ -18,11 +18,14 @@ def ParallelExtractDir(args, tmpdir, dir_):
     ExtractFeaturesForDir(args, tmpdir, dir_, "")
 
 
-def concatenate_dir_files(dir): #TODO move to helpers so both extract and entries_extractor can access
+def concatenate_dir_files(dir, out_file=None): #TODO move to helpers so both extract and entries_extractor can access
+    to_path = ""
+    if out_file:
+        to_path = f" >> {out_file}"
     files = os.listdir(dir)
     for file in files:
         path = os.path.join(os.path.abspath(dir), file)
-        os.system(f"type %s" % path)
+        os.system(f"type {path}{to_path}")
         os.remove(path)
     shutil.rmtree(dir)
 
@@ -72,9 +75,6 @@ def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
 
     if failed and os.path.exists(outputFileName):
         os.remove(outputFileName)
-
-
-
 
 
 def ExtractFeaturesForDirsList(args, dirs):
