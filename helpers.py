@@ -99,15 +99,14 @@ def load_graph(graph_file):
                 source, sink, edge_type, properties = parts
                 properties = eval(properties)
                 graph.add_edge(source, sink, edge_type, **properties)
-    print(
-        f"Loaded G(V, E) where (|V|, |E|) = ({len(graph.nodes)}, {len(graph.edges)})")
+    print(f"Loaded G(V, E) where (|V|, |E|) = ({len(graph.nodes)}, {len(graph.edges)})")
     return graph
 
 
 def try_unzip(zip_file, entry_dir):
-    with zipfile.ZipFile(zip_file, 'r') as z:
+    with zipfile.ZipFile(zip_file, "r") as z:
         for file_info in tqdm.tqdm(z.infolist()):
-            if file_info.filename.endswith('.dag'):
+            if file_info.filename.endswith(".dag"):
                 file_info.filename = os.path.basename(file_info.filename)
                 z.extract(file_info, entry_dir)
 
@@ -135,8 +134,7 @@ def load_library(library_name):
     entry_dir, zip_file, network_file = _library_paths(library_name)
     if not os.path.exists(entry_dir):
         if os.path.exists(zip_file):
-            print(
-                f"Did not find {entry_dir}, but {zip_file} exists. Unzipping ...")
+            print(f"Did not find {entry_dir}, but {zip_file} exists. Unzipping ...")
             try_unzip(zip_file, entry_dir)
         else:
             print(f"Did not find {entry_dir} nor {zip_file}.")
@@ -148,10 +146,12 @@ def load_library(library_name):
 
 def split_network_into_nodes_and_links(network_file_path):
     network_directory = os.path.dirname(os.path.abspath(network_file_path))
-    nodes_file = open(os.path.join(network_directory,
-                      "nodes.tsv"), "w", encoding="utf-8")
-    links_file = open(os.path.join(network_directory,
-                      "links.tsv"), "w", encoding="utf-8")
+    nodes_file = open(
+        os.path.join(network_directory, "nodes.tsv"), "w", encoding="utf-8"
+    )
+    links_file = open(
+        os.path.join(network_directory, "links.tsv"), "w", encoding="utf-8"
+    )
     nodes_file.write("node\tproperties")
     links_file.write("source\tsink\tedge_type\tproperties")
 
@@ -165,8 +165,7 @@ def split_network_into_nodes_and_links(network_file_path):
                 nodes_file.write(f"\n{node}\t{properties}")
             else:
                 source, sink, edge_type, properties = parts
-                links_file.write(
-                    f"\n{source}\t{sink}\t{edge_type}\t{properties}")
+                links_file.write(f"\n{source}\t{sink}\t{edge_type}\t{properties}")
 
     nodes_file.close()
     links_file.close()
@@ -179,8 +178,7 @@ def _check_dirs_exist_or_create(dirs_list):
 
 
 def _code2vec_train_val_test_dirs(path):
-    new_dir = os.path.join(
-        path, "code2vec")
+    new_dir = os.path.join(path, "code2vec")
     train_dir = os.path.join(new_dir, "train")
     val_dir = os.path.join(new_dir, "val")
     test_dir = os.path.join(new_dir, "test")
@@ -188,21 +186,20 @@ def _code2vec_train_val_test_dirs(path):
 
 
 def copy_entries_into_train_val_test_directories(
-        library_name: str,
-        train_mask: list[int],
-        val_mask: list[int],
-        test_mask: list[int],
+    library_name: str,
+    train_mask: list[int],
+    val_mask: list[int],
+    test_mask: list[int],
 ):
-    """Copy entries of the specified library into separate train, val and test directories, as required by code2vec.
-
-    """
+    """Copy entries of the specified library into separate train, val and test directories, as required by code2vec."""
     # TODO: test for overlap of masks
     # TODO: ensure ordered lists
     entry_dir, _, _ = _library_paths(library_name)
     train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
-        os.path.dirname(os.path.abspath(entry_dir)))
+        os.path.dirname(os.path.abspath(entry_dir))
+    )
     _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
-    train_pointer,  val_pointer, test_pointer = 0, 0, 0  # we only traverse lists once
+    train_pointer, val_pointer, test_pointer = 0, 0, 0  # we only traverse lists once
     for i, entry in tqdm.tqdm(enumerate(os.listdir(entry_dir))):
         if i in train_mask[train_pointer]:
             shutil.copy(entry, train_dir)
@@ -216,17 +213,19 @@ def copy_entries_into_train_val_test_directories(
 
 
 def probibalistic_copy_entries_into_train_val_test_directories(
-        library_name: str,
-        val_probability: float,
-        test_probability: float,
+    library_name: str,
+    val_probability: float,
+    test_probability: float,
 ):
     """Randomly copy entries of the specified library into separate train, val and test directories, as required by code2vec."""
     if val_probability + test_probability > 1:
-        raise ValueError("The probabilities sum up to {}".format(
-            val_probability + test_probability))
+        raise ValueError(
+            "The probabilities sum up to {}".format(val_probability + test_probability)
+        )
     entry_dir, _, _ = _library_paths(library_name)
     train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
-        os.path.dirname(os.path.abspath(entry_dir)))
+        os.path.dirname(os.path.abspath(entry_dir))
+    )
     _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
     train_counter, val_counter, test_counter = 0, 0, 0
 
@@ -245,23 +244,16 @@ def probibalistic_copy_entries_into_train_val_test_directories(
             train_counter += 1
     print(
         "\nTotal count:",
-        "\n\tTrain: ", train_counter,
-        "\n\tVal: ", val_counter,
-        "\n\tTest: ", test_counter,
+        "\n\tTrain: ",
+        train_counter,
+        "\n\tVal: ",
+        val_counter,
+        "\n\tTest: ",
+        test_counter,
     )
 
 
-if __name__ == "__main__":
-    # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
-    #     print(lib)
-    #     entries, network = load_library(lib)
-    #     print()
-    # split_network_into_nodes_and_links(
-    #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
-
-    # probibalistic_copy_entries_into_train_val_test_directories(
-    #     "stdlib", 0.2, 0.2)
-
+def generate_report():
     import math
     import pandas as pd
 
@@ -303,7 +295,7 @@ if __name__ == "__main__":
                 parts = line.split("\t")
                 node_type = parts[1]
                 node_children = eval(parts[3])
-                
+
                 if not node_children:
                     leaves += 1
                     entry_leaves += 1
@@ -311,21 +303,23 @@ if __name__ == "__main__":
                     entry_edges += len(node_children)
                 if node_type == ":name":
                     if not name:
-                        name = str(parts[2]).replace('"', '')
+                        name = str(parts[2]).replace('"', "")
                     entry_names += 1
 
-        entry_type = labels_dict[name]["label"].replace(":","")
+        entry_type = labels_dict[name]["label"].replace(":", "")
 
         if entry_type == "function":
             functions += 1
-            function_paths += math.factorial(entry_leaves-1)
+            function_paths += math.factorial(entry_leaves - 1)
             # if function_paths_carry >= BILLION:
             #     function_paths_billions += function_paths_carry // BILLION
             #     function_paths_carry = function_paths_carry % BILLION
-                            
-        log.write(f"\n{file}\t{entry_type}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}")
-        paths += math.factorial(entry_leaves-1) 
-        name_paths += math.factorial(entry_names-1)
+
+        log.write(
+            f"\n{file}\t{entry_type}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}"
+        )
+        paths += math.factorial(entry_leaves - 1)
+        name_paths += math.factorial(entry_names - 1)
         # if paths_carry >= BILLION:
         #     paths_billions += paths_carry // BILLION
         #     paths_carry = paths_carry % BILLION
@@ -335,7 +329,7 @@ if __name__ == "__main__":
         if entry_leaves > max_leaves:
             max_leaves = entry_leaves
             max_entry = file
-            
+
     log.close()
 
     print("Making numbers printable...")
@@ -351,15 +345,30 @@ if __name__ == "__main__":
     while function_paths > 10:
         function_paths_power += 1
         function_paths = function_paths // 10
-    
+
     print(
         "-------REPORT-------",
-        "\nTotal number of leaves: ", leaves,
+        "\nTotal number of leaves: ",
+        leaves,
         f"\n\tOn average {leaves / entries} leaves for each entry.",
-        "\n\tMax leaves: ", max_leaves,
-        "\n\tEntry with most leaves: ", max_entry,
-        f"\nTotal paths (billions): {paths} * 10^{paths_power}", 
+        "\n\tMax leaves: ",
+        max_leaves,
+        "\n\tEntry with most leaves: ",
+        max_entry,
+        f"\nTotal paths (billions): {paths} * 10^{paths_power}",
         f"\nTotal paths between :name entries (billions): {name_paths} * 10^{name_paths_power}",
-        f"\nTotal paths in :function entries (billions): {function_paths} * 10^{function_paths_power}", 
-        "\n\tTotal :function entries: ", functions,
+        f"\nTotal paths in :function entries (billions): {function_paths} * 10^{function_paths_power}",
+        "\n\tTotal :function entries: ",
+        functions,
     )
+
+
+if __name__ == "__main__":
+    # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
+    #     print(lib)
+    #     entries, network = load_library(lib)
+    #     print()
+    # split_network_into_nodes_and_links(
+    #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+
+    probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
