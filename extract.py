@@ -31,12 +31,8 @@ def concatenate_dir_files(dir, out_file=None): #TODO move to helpers so both ext
 
 
 def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
-
-    # command = ['java', '-cp', args.jar, 'JavaExtractor.App',
-    #            '--max_path_length', str(args.max_path_length), '--max_path_width', str(args.max_path_width),
-    #            '--dir', dir_, '--num_threads', str(args.num_threads)]
-    
-
+    """Recursively extract features from Entry files in the directory.
+    """
     def kill(process): return process.kill()
     outputFileName = tmpdir + prefix + os.path.basename(os.path.abspath(dir_))
     out_dir = tmpdir + prefix + os.path.basename(os.path.abspath(dir_)) + "sub"
@@ -49,8 +45,6 @@ def ExtractFeaturesForDir(args, tmpdir, dir_, prefix):
                    args.max_path_length), '--max_path_width', str(args.max_path_width),
                '--dir', dir_, '--num_threads', str(args.num_threads), '--tmpdir', out_dir]
 
-    # print(outputFileName)
-    # outputFileName = tmpdir + prefix + dir_.split('/')[-1]
     failed = False
     with open(outputFileName, 'a', encoding="utf-8") as outputFile:
         sleeper = subprocess.Popen(
@@ -93,13 +87,7 @@ def ExtractFeaturesForDirsList(args, dirs):
                 result.get(timeout=timeout_seconds)
         except multiprocessing.TimeoutError:
             continue
-
-        output_files = os.listdir(tmp_dir)
         concatenate_dir_files(tmp_dir)
-        # for f in output_files:
-        #     os.system("type %s" % os.path.join(os.path.abspath(tmp_dir), f))
-        #     # os.system("cat %s/%s" % (tmp_dir, f)) # Linux command that doesn't work in Powershell
-        #     os.remove(os.path.join(os.path.abspath(tmp_dir), f))
 
 
 if __name__ == '__main__':
@@ -121,8 +109,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.file is not None:
-        # command = 'java -cp ' + args.jar + ' JavaExtractor.App --max_path_length ' + \
-        #           str(args.max_path_length) + ' --max_path_width ' + str(args.max_path_width) + ' --file ' + args.file
         command = 'python ' + ' entries_extractor.py --max_path_length ' + \
                   str(args.max_path_length) + ' --max_path_width ' + \
             str(args.max_path_width) + ' --file ' + args.file
@@ -130,9 +116,5 @@ if __name__ == '__main__':
     elif args.dir is not None:
         subdirs = get_immediate_subdirectories(args.dir)
         to_extract = subdirs if subdirs else [args.dir.rstrip('/')]
-        # print(
-        #     "To extract: ", to_extract,
-        #     "\nArgs: ", args,
-        # )
         ExtractFeaturesForDirsList(args, to_extract)
     

@@ -110,11 +110,6 @@ def generate_path_features_for_function(
         for j in range(i + 1, len(leaves)):
             s = G.nodes[leaves[i]]
             t = G.nodes[leaves[j]]
-            # print(
-            #     "Source: ", s,
-            #       "Sink: ", t,
-            #       )
-            # path = nx.shortest_path(G, source=leaves[i], target=leaves[j])
             path = generate_path(
                 G, leaves[i], leaves[j], max_path_length, max_path_width
             )
@@ -128,7 +123,6 @@ def generate_path_features_for_function(
 
 
 def format_as_label(s: str):
-    # s.encode("unicode-escape").decode("unicode-escape")
     new_s = ""
     for c in s:
         if c == "." or c == " " or c == "_":
@@ -143,7 +137,6 @@ def format_as_label(s: str):
 
 
 def extract_graph(file_path):
-    # print("Extracting graph: ", file_path)
     children = {}
     G = nx.DiGraph()
     leaves = []
@@ -179,13 +172,10 @@ def extract_graph(file_path):
 
 # mirror original extractSingleFile
 def extract_single_entry_file(file_path, args):
-    # print("Extracting file: ", file_path)
     graph, leaves, name = extract_graph(file_path)
-    # print("Extracted graph: ", graph)
     separator = " "
     # if args.pretty_print:
     #     separator = "\n\t"
-    # print("Generating path features for: ", name)
     features = generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )
