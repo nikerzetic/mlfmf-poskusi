@@ -168,4 +168,5 @@ cython_debug/
 java14m_model.tar.gz
 
 /code2vec-master
+/logs
 4_link_predict.html

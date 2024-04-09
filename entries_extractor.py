@@ -2,7 +2,10 @@ import multiprocessing
 import itertools
 import os
 import sys
+import datetime
+import helpers
 import tqdm
+import time
 import networkx as nx
 from argparse import ArgumentParser
 from extract import concatenate_dir_files
@@ -99,7 +102,7 @@ def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None
         node_type = G.nodes[current_id]["type"]
         path.append(down_symbol + start_symbol + node_type + str(child_id) + end_symbol)
 
-    return "".join(path) # Join is faster than +, because str is immutable
+    return "".join(path)  # Join is faster than +, because str is immutable
 
 
 def generate_path_features_for_function(
@@ -182,7 +185,7 @@ def extract_single_entry_file(file_path, args):
     # TODO separators as args
     if features:
         return name + separator + separator.join(features)
-    return None #TODO should log how many were skipped
+    return None  # TODO should log how many were skipped
 
 
 def extract_file_features(file, args):
@@ -193,22 +196,28 @@ def extract_file_features(file, args):
         return
     entry_file = os.path.join(args.dir, file)
     tmp_file = os.path.join(args.tmpdir, str(os.getpid()))
-    # LOGS = open(os.path.abspath("D:\\Nik\\Projects\\mlfmf-poskusi\\LOGS.txt"), "a", encoding="utf-8")
+    LOG_FILE = os.path.join(args.logdir, str(os.getpid()))
+    helpers.write_log("Extracting " + file.replace(".dag", ""), LOG_FILE)
+    start_time = time.time()
     with open(tmp_file, "a", encoding="utf-8") as tmp:
         to_print = extract_single_entry_file(entry_file, args)
         if not to_print:
-            return #TODO should log how many were skipped
+            helpers.write_log("No appropriate paths in " + file.replace(".dag", ""), LOG_FILE)
+            return  # TODO should log how many were skipped
         print(
             to_print,
             file=tmp,
         )
-    # LOGS.close()
+    elapsed = time.time() - start_time
+    helpers.write_log("Done " + file.replace(".dag", "") + f" in {round(elapsed,4)} s", LOG_FILE)
     # TODO print to file
 
 
 def extract_dir(args):
+    start = time.time()
+    helpers.write_log("Extracting " + args.dir + f" with total files {len(os.listdir(args.dir))}")
     try:
-        with multiprocessing.Pool(4) as p:
+        with multiprocessing.get_context("spawn").Pool(int(args.num_threads)) as p:
             result = p.starmap_async(
                 extract_file_features,
                 zip(
@@ -219,7 +228,12 @@ def extract_dir(args):
             )
             result.get(timeout=None)
     except Exception as e:
-        print(f"Exception while extracting dir {args.dir}: ", e)  # TODO file parameter for logs
+        print(
+            f"Exception while extracting dir {args.dir}: ", e
+        )  # TODO file parameter for logs
+    stop = time.time()
+    helpers.write_log("Done extracting " + args.dir + f"in {round(stop - start,4)} s")
+    return
 
 
 if __name__ == "__main__":
@@ -244,6 +258,7 @@ if __name__ == "__main__":
     parser.add_argument("-dir", "--dir", dest="dir", required=False)
     parser.add_argument("-file", "--file", dest="file", required=False)
     parser.add_argument("-tmpdir", "--tmpdir", dest="tmpdir", required=False)
+    parser.add_argument("-logdir", "--logdir", dest="logdir", required=False)
 
     args = parser.parse_args()
 
