@@ -185,7 +185,7 @@ def extract_single_entry_file(file_path, args):
     # TODO separators as args
     if features:
         return name + separator + separator.join(features)
-    return None  # TODO should log how many were skipped
+    return ""  # TODO should log how many were skipped
 
 
 def extract_file_features(file, args):
@@ -202,14 +202,14 @@ def extract_file_features(file, args):
     with open(tmp_file, "a", encoding="utf-8") as tmp:
         to_print = extract_single_entry_file(entry_file, args)
         if not to_print:
-            helpers.write_log("No appropriate paths in " + file.replace(".dag", ""), LOG_FILE)
-            return  # TODO should log how many were skipped
+            helpers.write_log("\tNo appropriate paths", LOG_FILE)
+            # TODO should log how many were skipped
         print(
             to_print,
             file=tmp,
         )
     elapsed = time.time() - start_time
-    helpers.write_log("Done " + file.replace(".dag", "") + f" in {round(elapsed,4)} s", LOG_FILE)
+    helpers.write_log(f"\tDone in {round(elapsed,4)} s", LOG_FILE)
     # TODO print to file
 
 
@@ -232,7 +232,7 @@ def extract_dir(args):
             f"Exception while extracting dir {args.dir}: ", e
         )  # TODO file parameter for logs
     stop = time.time()
-    helpers.write_log("Done extracting " + args.dir + f" in {round(stop - start/60)} min")
+    helpers.write_log("Done extracting " + args.dir + f" in {round((stop - start)/60)} min")
     return
 
 

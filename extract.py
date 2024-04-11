@@ -129,7 +129,7 @@ def ExtractFeaturesForDirsList(args, dirs):
 
         helpers.write_log("Concatenating temp_dir " + tmp_dir)
         concatenate_dir_files(tmp_dir)
-        # concatenate_dir_files(logdir, f"{os.path.dirname(logdir)}.txt")
+        concatenate_dir_files(logdir, f"{os.path.dirname(logdir)}.txt")
 
 
 if __name__ == "__main__":
