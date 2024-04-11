@@ -364,9 +364,9 @@ def generate_report():
     )
 
 
-def write_log(message, log="./logs/main.txt"):
+def write_log(message, log=os.path.abspath("./logs/main.txt")):
     with open(log, "a", encoding="utf-8") as LOG:
-        print(datetime.datetime.now().strftime("[%Y-%m-%D %H:%M]: "), message, file=LOG)
+        print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M]: "), message, file=LOG)
 
 
 if __name__ == "__main__":
@@ -377,4 +377,4 @@ if __name__ == "__main__":
     # split_network_into_nodes_and_links(
     #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
 
-    probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.02, 0.02)
+    probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)

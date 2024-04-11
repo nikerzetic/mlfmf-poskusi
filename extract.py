@@ -85,7 +85,7 @@ def ExtractFeaturesForDir(args, tmpdir, logdir, dir_, prefix):
             for subdir in subdirs:
                 ExtractFeaturesForDir(args, subdir, prefix + dir_.split("/")[-1] + "_")
 
-        helpers.write_log("Concatenating out_dir" + out_dir)
+        helpers.write_log("Concatenating out_dir " + out_dir)
         concatenate_dir_files(out_dir)
 
     if failed and os.path.exists(outputFileName):
@@ -113,9 +113,9 @@ def ExtractFeaturesForDirsList(args, dirs):
         helpers.write_log(f"Iteration {i}")
         batch_dirs = dirs[i : i + args.batch_size]
         files_num = sum([len(os.listdir(d)) for d in batch_dirs])
-        timeout_seconds = 3 * files_num  # timeout setting
+        timeout_seconds = 10 * files_num  # timeout setting
         #TODO this is so ugly; a fixed timeot that always happens in our case + working through console commands that leaves the process running
-        helpers.write_log(f"Will get results in {round(timeout_seconds / 60)} min.")
+        helpers.write_log(f"Will get results in {round(3*files_num / 60 )} min.")
         try:
             with multiprocessing.get_context("spawn").Pool(4) as p:
                 result = p.starmap_async(

@@ -232,7 +232,7 @@ def extract_dir(args):
             f"Exception while extracting dir {args.dir}: ", e
         )  # TODO file parameter for logs
     stop = time.time()
-    helpers.write_log("Done extracting " + args.dir + f"in {round(stop - start,4)} s")
+    helpers.write_log("Done extracting " + args.dir + f" in {round(stop - start/60)} min")
     return
 
 
