@@ -171,4 +171,5 @@ java14m_model.tar.gz
 /logs
 /tmp
 /data
+/models
 4_link_predict.html

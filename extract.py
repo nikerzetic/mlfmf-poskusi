@@ -97,13 +97,13 @@ def ExtractFeaturesForDirsList(args, dirs):
     if os.path.exists(tmp_dir):
         shutil.rmtree(tmp_dir, ignore_errors=True)
     os.makedirs(tmp_dir)
-    logdir = os.path.abspath(
+    logdir_name = (
         "./logs/extract_"
         + os.path.basename(os.path.abspath(args.dir))
         + "_"
         + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-        + "/"
     )
+    logdir = os.path.abspath(logdir_name + "/")
     if os.path.exists(logdir):
         shutil.rmtree(logdir, ignore_errors=True)
     os.makedirs(logdir)
@@ -114,13 +114,18 @@ def ExtractFeaturesForDirsList(args, dirs):
         batch_dirs = dirs[i : i + args.batch_size]
         files_num = sum([len(os.listdir(d)) for d in batch_dirs])
         timeout_seconds = 10 * files_num  # timeout setting
-        #TODO this is so ugly; a fixed timeot that always happens in our case + working through console commands that leaves the process running
+        # TODO this is so ugly; a fixed timeot that always happens in our case + working through console commands that leaves the process running
         helpers.write_log(f"Will get results in {round(3*files_num / 60 )} min.")
         try:
             with multiprocessing.get_context("spawn").Pool(4) as p:
                 result = p.starmap_async(
                     ParallelExtractDir,
-                    zip(itertools.repeat(args), itertools.repeat(tmp_dir), itertools.repeat(logdir), batch_dirs),
+                    zip(
+                        itertools.repeat(args),
+                        itertools.repeat(tmp_dir),
+                        itertools.repeat(logdir),
+                        batch_dirs,
+                    ),
                 )
                 result.get(timeout=timeout_seconds)
         except multiprocessing.TimeoutError:
@@ -129,7 +134,7 @@ def ExtractFeaturesForDirsList(args, dirs):
 
         helpers.write_log("Concatenating temp_dir " + tmp_dir)
         concatenate_dir_files(tmp_dir)
-        concatenate_dir_files(logdir, f"{os.path.dirname(logdir)}.txt")
+        concatenate_dir_files(logdir, f"{os.path.abspath(logdir_name)}.txt")
 
 
 if __name__ == "__main__":
@@ -165,7 +170,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    helpers.write_log("*******************************New Run*********************************")
+    helpers.write_log(
+        "*******************************New Run*********************************"
+    )
 
     if args.file is not None:
         command = (
