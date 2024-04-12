@@ -167,7 +167,6 @@ cython_debug/
 *.zip
 java14m_model.tar.gz
 
-/code2vec-master
 /logs
 /tmp
 /data
