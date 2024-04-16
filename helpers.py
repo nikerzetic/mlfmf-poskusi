@@ -18,6 +18,9 @@ class EntryNode:
     def __repr__(self) -> str:
         return f"EntryNode({self.id}, {self.type}, {self.description})"
 
+    def __str__(self) -> str:
+        return f"{self.id}\t{self.type}\t{self.description}\t{[child.id for child in self.children]}"
+
     def add_children(self, children: list["EntryNode"]):
         for child in children:
             if child not in self.children:
@@ -34,6 +37,21 @@ class Entry:
 
     def __repr__(self) -> str:
         return f"Entry({self.name}, {self.root})"
+
+    def __str__(self) -> str:
+        lines = ["NODE ID\tNODE TYPE\tNODE DESCRIPTION\tCHILDREN IDS"]
+        lines += [str(node) for node in self.to_list()]
+        return "\n".join(lines)
+
+    def to_list(self) -> list[EntryNode]:
+        def append_entry_node(lst: list[EntryNode], node: EntryNode):
+            lst.append(node)
+            for child in node.children:
+                append_entry_node(lst, child)
+
+        lst = []
+        append_entry_node(lst, self.root)
+        return lst
 
     def compute_is_tree(self):
         stack = [self.root]
@@ -254,11 +272,44 @@ def probibalistic_copy_entries_into_train_val_test_directories(
     )
 
 
+def entry_to_dag(entry: Entry):
+    pass
+
+
+def write_entry_node(node: EntryNode, id: int):
+    child_ids = [child.id for child in node.children]
+    return f"{id}\t{node.type}\t{node.description}\t{child_ids}", node.children
+
+
+def reindex_entry(entry: Entry, starting_id: int):
+    current_id = starting_id
+    entry.root.id = current_id
+    queue = [entry.root]
+    while queue:
+        current_node = queue.pop(0)
+        for child in current_node.children:
+            current_id += 1
+            child.id = current_id
+            queue.append(child)
+
+
+def reindex_library_asts(library_name):
+    print(f"Reindexing library {library_name}...")
+    entry_dir, _, _ = _library_paths(library_name)
+    for file in tqdm.tqdm(os.listdir(entry_dir)):
+        if not file.endswith(".dag"):
+            continue
+        entry = load_entry(os.path.join(entry_dir, file))
+        current_id = entry.root.children[0].id
+        reindex_entry(entry, current_id)
+        with open(os.path.join(entry_dir, file), "w", encoding="utf-8") as f:
+            f.write(str(entry))
+
+
 def generate_report():
     import math
     import pandas as pd
 
-    BILLION = 1000000000
     leaves = 0
     entries = 0
     paths = 0
@@ -377,4 +428,6 @@ if __name__ == "__main__":
     # split_network_into_nodes_and_links(
     #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
 
+    _, _ = load_library("stdlib")
     probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
+    reindex_library_asts("stdlib")

@@ -78,9 +78,9 @@ def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None
     common_prefix, i_s, i_t = find_common_prefix(stack_s, stack_t)
 
     if path_length(stack_s, stack_t, common_prefix) > max_length:
-        return None
+        return ""
     if path_width(stack_s, stack_t, i_s, i_t) > max_width:
-        return None
+        return ""
 
     path = []
     for i in range(1, len(stack_s) - common_prefix):
@@ -159,7 +159,7 @@ def extract_graph(file_path):
             type=node_type.replace(":", ""),
             desc=format_as_label(node_description),
         )
-        if node_type == ":name" and not node_children:
+        if node_type == ":name" and not node_children: #TODO attention
             leaves.append(node_id)
         if name:
             continue
@@ -182,10 +182,11 @@ def extract_single_entry_file(file_path, args):
     features = generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )
+    if not features:
+        return None
     # TODO separators as args
-    if features:
-        return name + separator + separator.join(features)
-    return ""  # TODO should log how many were skipped
+    return name + separator + separator.join(features)
+    # TODO should log how many were skipped
 
 
 def extract_file_features(file, args):
@@ -201,13 +202,14 @@ def extract_file_features(file, args):
     start_time = time.time()
     with open(tmp_file, "a", encoding="utf-8") as tmp:
         to_print = extract_single_entry_file(entry_file, args)
-        if not to_print:
+        if to_print:
+            print(
+                to_print,
+                file=tmp,
+            )
+        else:
             helpers.write_log("\tNo appropriate paths", LOG_FILE)
             # TODO should log how many were skipped
-        print(
-            to_print,
-            file=tmp,
-        )
     elapsed = time.time() - start_time
     helpers.write_log(f"\tDone in {round(elapsed,4)} s", LOG_FILE)
     # TODO print to file

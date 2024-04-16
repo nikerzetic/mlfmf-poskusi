@@ -32,9 +32,18 @@ def concatenate_dir_files(
     files = os.listdir(dir)
     for file in files:
         path = os.path.join(os.path.abspath(dir), file)
-        os.system(f"type {path}{to_path}")
+        os.system(f"type {path}{to_path}") #TODO this only writes the last file to out_file
         os.remove(path)
     shutil.rmtree(dir)
+
+
+# def concatenate_dir_files_powershell(
+#     dir, out_file
+# ):
+#     files = os.listdir(dir)
+#     os.system(f"Get-Content {", ".join(files)} -Encoding UTF8 | Set-Content {out_file} -Encoding UTF8")
+#     for file in files:
+
 
 
 def ExtractFeaturesForDir(args, tmpdir, logdir, dir_, prefix):
@@ -115,7 +124,7 @@ def ExtractFeaturesForDirsList(args, dirs):
         files_num = sum([len(os.listdir(d)) for d in batch_dirs])
         timeout_seconds = 10 * files_num  # timeout setting
         # TODO this is so ugly; a fixed timeot that always happens in our case + working through console commands that leaves the process running
-        helpers.write_log(f"Will get results in {round(3*files_num / 60 )} min.")
+        helpers.write_log(f"Will get results in {round(0.2*files_num / 60)} - {round(0.4*files_num / 60)} min.") # Manual prediction for my sanity's sake
         try:
             with multiprocessing.get_context("spawn").Pool(4) as p:
                 result = p.starmap_async(

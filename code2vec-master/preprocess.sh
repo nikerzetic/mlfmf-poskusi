@@ -40,13 +40,13 @@ VAL_DATA_FILE=data/${DATASET_NAME}/${DATASET_NAME}.val.raw.txt
 TEST_DATA_FILE=data/${DATASET_NAME}/${DATASET_NAME}.test.raw.txt
 
 echo "Extracting paths from validation set..."
-${PYTHON} ./extract.py --dir ${VAL_DIR} --max_path_length 16 --max_path_width 2 --num_threads ${NUM_THREADS} > ${VAL_DATA_FILE}
+${PYTHON} ./extract.py --dir ${VAL_DIR} --max_path_length 8 --max_path_width 2 --num_threads ${NUM_THREADS} > ${VAL_DATA_FILE}
 echo "Finished extracting paths from validation set"
 echo "Extracting paths from test set..."
-${PYTHON} ./extract.py --dir ${TEST_DIR} --max_path_length 16 --max_path_width 2 --num_threads ${NUM_THREADS} > ${TEST_DATA_FILE}
+${PYTHON} ./extract.py --dir ${TEST_DIR} --max_path_length 8 --max_path_width 2 --num_threads ${NUM_THREADS} > ${TEST_DATA_FILE}
 echo "Finished extracting paths from test set"
 echo "Extracting paths from training set..."
-${PYTHON} ./extract.py --dir ${TRAIN_DIR} --max_path_length 16 --max_path_width 2 --num_threads ${NUM_THREADS} | shuf > ${TRAIN_DATA_FILE}
+${PYTHON} ./extract.py --dir ${TRAIN_DIR} --max_path_length 8 --max_path_width 2 --num_threads ${NUM_THREADS} | shuf > ${TRAIN_DATA_FILE}
 echo "Finished extracting paths from training set"
 
 TARGET_HISTOGRAM_FILE=data/${DATASET_NAME}/${DATASET_NAME}.histo.tgt.c2v
