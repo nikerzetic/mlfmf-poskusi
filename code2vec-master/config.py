@@ -6,9 +6,9 @@ import sys
 import os
 
 
-class Config:
+class Config: #XXX: config class
     @classmethod
-    def arguments_parser(cls) -> ArgumentParser:
+    def arguments_parser(cls) -> ArgumentParser: #XXX: parser is part of the config
         parser = ArgumentParser()
         parser.add_argument("-d", "--data", dest="data_path",
                             help="path to preprocessed dataset", required=False)
@@ -86,7 +86,7 @@ class Config:
         self.DL_FRAMEWORK = 'tensorflow' if not args.dl_framework else args.dl_framework
         self.USE_TENSORBOARD = args.use_tensorboard
 
-    def __init__(self, set_defaults: bool = False, load_from_args: bool = False, verify: bool = False):
+    def __init__(self, set_defaults: bool = False, load_from_args: bool = False, verify: bool = False): #XXX: init so far down
         self.NUM_TRAIN_EPOCHS: int = 0
         self.SAVE_EVERY_EPOCHS: int = 0
         self.TRAIN_BATCH_SIZE: int = 0

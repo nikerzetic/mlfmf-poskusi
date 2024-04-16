@@ -14,7 +14,8 @@ def load_model_dynamically(config: Config) -> Code2VecModelBase:
 
 
 if __name__ == '__main__':
-    config = Config(set_defaults=True, load_from_args=True, verify=True)
+    config = Config(set_defaults=True, load_from_args=True, verify=True) #XXX: unclear where args are parsed
+    #XXX: unclear how to debug this code
 
     model = load_model_dynamically(config)
     config.log('Done creating code2vec model')
