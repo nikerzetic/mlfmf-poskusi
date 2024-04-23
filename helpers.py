@@ -1,4 +1,5 @@
 import networkx as nx
+import re
 import tqdm
 import os
 import zipfile
@@ -420,6 +421,26 @@ def write_log(message, log=os.path.abspath("./logs/main.txt")):
         print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M]: "), message, file=LOG)
 
 
+def string_contains_invalid_context(s: str, pattern: re.Pattern):
+    return pattern.search(s)
+
+
+def invalid_contexts_in_file(path):
+    invalid_expression = re.compile("\S+,\S+,\S+,\S+")
+    invalid_lines = {}
+    num = 0
+    print("Validating contexts...")
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            num += 1
+            if string_contains_invalid_context(line, invalid_expression):
+                invalid_lines[num] = invalid_expression
+            if num % 200 == 0:
+                print(".", end="", flush=True)
+
+
+
+
 if __name__ == "__main__":
     # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
     #     print(lib)
@@ -427,6 +448,8 @@ if __name__ == "__main__":
     #     print()
     # split_network_into_nodes_and_links(
     #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+
+    # print(invalid_contexts_in_file("D:\\Nik\\Projects\\mlfmf-poskusi\\data\\stdlib\\stdlib.train.raw.txt"))
 
     _, _ = load_library("stdlib")
     probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
