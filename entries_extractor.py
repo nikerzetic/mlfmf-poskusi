@@ -126,17 +126,28 @@ def generate_path_features_for_function(
 
 
 def format_as_label(s: str):
-    new_s = ""
-    for c in s:
-        if c == "." or c == " " or c == "_":
-            new_s += "|"
-        elif c.isupper():
-            new_s += "|" + c.lower()
-        else:
-            new_s += c
-    new_s = new_s.replace("||", "|")
-    # TODO remove "|" preceding the string
-    return new_s
+    parts = s.split(".")
+    new_s = []
+    for w in parts:
+        new_w = []
+        if len(w) == 1:
+            new_s.append(w.lower())
+            continue
+        for i in range(len(w)-1):
+            middle_sepparator = w[i] in " -" and not i == 0
+            if not middle_sepparator:
+                new_w.append(w[i].lower())
+            if middle_sepparator:
+                new_w.append("|")
+            elif w[i] in "-" or w[i].islower() and w[i+1].isupper():
+                new_w.append("|")
+            elif w[i+1] == "_":
+                new_w.append("|")
+            if i+1 == len(w)-1:
+                new_w.append(w[i+1].lower())
+        new_s.append("".join(new_w))
+    # join is faster the appending to str
+    return "|".join(new_s) 
 
 
 def extract_graph(file_path):
@@ -147,6 +158,7 @@ def extract_graph(file_path):
     file = open(file_path, "r", encoding="utf-8")
     if not str(file).endswith(".dag"):
         file.readline()  # Skip column names id, type, description, children ids
+    filename = str(file).replace(".dag","")
     for line in file:
         parts = line.split("\t")
         node_id = int(parts[0])
