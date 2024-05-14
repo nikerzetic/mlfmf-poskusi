@@ -6,6 +6,7 @@ import zipfile
 import shutil
 import random
 import datetime
+import sys
 
 
 class EntryNode:
@@ -439,6 +440,42 @@ def invalid_contexts_in_file(path):
                 print(".", end="", flush=True)
 
 
+def add_to_missing_symbols_file(s: str):
+    file_name = "missing_symbols.txt"
+    with open(file_name, "a", encoding="utf-8") as file:
+        print(f"{s}", file=file)
+
+def consolidate_missing_symbols_to_dict():
+    missing_symbols = {}
+    file_name = "missing_symbols.txt"
+    with open(file_name, "r", encoding="utf-8") as file:
+        for c in file:
+            c = c.replace("\n", "")
+            if not c in missing_symbols:
+                missing_symbols[c] = c.encode("unicode-escape")
+    return missing_symbols
+
+from unicode_to_latex import unicode_to_latex
+
+
+def replace_unicode_with_latex(s: str):
+    """
+    Replaces a unicode character with its latex representation.
+
+    Designed to be used after entries_extractor.format_as_label().
+    """
+    new_s = []
+    for c in s:
+        if c.isascii():
+            new_s.append(c)
+        else:
+            try:
+                new_c = unicode_to_latex[c]
+            except KeyError:
+                new_c = "???"
+                add_to_missing_symbols_file(c)
+            new_s.append(new_c.strip())
+    return "".join(new_s)
 
 
 if __name__ == "__main__":
@@ -451,6 +488,11 @@ if __name__ == "__main__":
 
     # print(invalid_contexts_in_file("D:\\Nik\\Projects\\mlfmf-poskusi\\data\\stdlib\\stdlib.train.raw.txt"))
 
-    _, _ = load_library("stdlib")
-    probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
-    reindex_library_asts("stdlib")
+    # _, _ = load_library("stdlib")
+    # probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
+    # reindex_library_asts("stdlib")
+
+    missing = consolidate_missing_symbols_to_dict()
+    for key, value in missing.items():
+        decoded_value = value.decode("ascii", "backslashreplace")
+        print(f'u"{decoded_value}": "{key}",')

@@ -55,7 +55,7 @@ def find_common_prefix(stack_u: list, stack_v: list):
 
 
 def path_length(stack_u: list, stack_v: list, common_prefix: int):
-    return len(stack_u) + len(stack_v) - 2 * common_prefix
+    return len(stack_u) + len(stack_v) - 2 * common_prefix + 1
 
 
 def path_width(
@@ -67,11 +67,17 @@ def path_width(
     return stack_u[current_ancestor_index_u] - stack_v[current_ancestor_index_v]
 
 
-def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None):
-    start_symbol = "("
-    end_symbol = ")"
-    up_symbol = "^"
-    down_symbol = "_"
+def generate_path(
+    G: nx.DiGraph,
+    s: int,
+    t: int,
+    max_length=float("inf"),
+    max_width=float("inf"),
+    start_symbol="(",
+    end_symbol=")",
+    up_symbol="^",
+    down_symbol="_",
+):
 
     stack_s = get_tree_stack(G, s)
     stack_t = get_tree_stack(G, t)
@@ -88,19 +94,19 @@ def generate_path(G: nx.DiGraph, s: int, t: int, max_length=None, max_width=None
         child_id = stack_s[i - 1]
         # parent_id = stack_s[i + 1]  # TODO FeatureExtractor line 158
         node_type = G.nodes[current_id]["type"]
-        path.append(start_symbol + node_type + str(child_id) + end_symbol + up_symbol)
+        path.append(start_symbol + node_type + end_symbol + up_symbol)
 
     for i in [len(stack_s) - common_prefix]:  # TODO this is ugly - for symetry
         current_id = stack_s[i]
         child_id = stack_s[i - 1]
         node_type = G.nodes[current_id]["type"]
-        path.append(start_symbol + node_type + str(child_id) + end_symbol)
+        path.append(start_symbol + node_type + end_symbol)
 
     for i in range(len(stack_t) - common_prefix - 1, 0, -1):
         current_id = stack_t[i]
         child_id = stack_t[i - 1]
         node_type = G.nodes[current_id]["type"]
-        path.append(down_symbol + start_symbol + node_type + str(child_id) + end_symbol)
+        path.append(down_symbol + start_symbol + node_type + end_symbol)
 
     return "".join(path)  # Join is faster than +, because str is immutable
 
@@ -114,40 +120,57 @@ def generate_path_features_for_function(
             s = G.nodes[leaves[i]]
             t = G.nodes[leaves[j]]
             path = generate_path(
-                G, leaves[i], leaves[j], max_path_length, max_path_width
+                G,
+                leaves[i],
+                leaves[j],
+                max_path_length,
+                max_path_width,
+                start_symbol="",
+                end_symbol="",
+                up_symbol="|",
+                down_symbol="|",
             )
             if not path:
                 continue
             features.append(
-                s["desc"] + "," + str(hash_string(path)) + "," + t["desc"]
+                s["desc"]
+                + ","
+                + path
+                + ","
+                + t["desc"]
+                # s["desc"] + "," + str(hash_string(path)) + "," + t["desc"]
             )  # TODO here we define the path separator
             # TODO should be source, path, sink
     return features
 
 
-def format_as_label(s: str):
-    parts = s.split(".")
+def format_as_label(s: str, separator="|"):
+    # We assume only the last part of each string is relavant (other are module imports)
+    relevant = s.split(".")[-1]
+    # We drop the number that usually follows a name and a possible "
+    w = relevant.split(" ")[0].replace(
+        '"', ""
+    )  # HACK: this should be parsed without the need to replace
     new_s = []
-    for w in parts:
-        new_w = []
-        if len(w) == 1:
-            new_s.append(w.lower())
-            continue
-        for i in range(len(w)-1):
-            middle_sepparator = w[i] in " -" and not i == 0
-            if not middle_sepparator:
-                new_w.append(w[i].lower())
-            if middle_sepparator:
-                new_w.append("|")
-            elif w[i] in "-" or w[i].islower() and w[i+1].isupper():
-                new_w.append("|")
-            elif w[i+1] == "_":
-                new_w.append("|")
-            if i+1 == len(w)-1:
-                new_w.append(w[i+1].lower())
-        new_s.append("".join(new_w))
-    # join is faster the appending to str
-    return "|".join(new_s) 
+    if len(w) == 1:
+        new_s.append(w.lower())
+    for i in range(len(w) - 1):
+        middle_dash = w[i] in "-" and not i == 0
+        is_sepparator = (
+            (w[i].islower() and w[i + 1].isupper())
+            or not (w[i].isalpha() and w[i + 1].isalpha())
+            or w[i + 1] == "_"
+        )
+        if not middle_dash:
+            new_s.append(w[i].lower())
+        # To avoid repeating separators
+        separator_already_included = new_s and new_s[-1] == separator
+        if is_sepparator and not separator_already_included:
+            new_s.append(separator)
+        if i + 1 == len(w) - 1:
+            new_s.append(w[i + 1].lower())
+    # join is faster then str +=
+    return "".join(new_s)
 
 
 def extract_graph(file_path):
@@ -158,7 +181,6 @@ def extract_graph(file_path):
     file = open(file_path, "r", encoding="utf-8")
     if not str(file).endswith(".dag"):
         file.readline()  # Skip column names id, type, description, children ids
-    filename = str(file).replace(".dag","")
     for line in file:
         parts = line.split("\t")
         node_id = int(parts[0])
@@ -169,15 +191,22 @@ def extract_graph(file_path):
         G.add_node(
             node_id,
             type=node_type.replace(":", ""),
-            desc=format_as_label(node_description),
+            desc=helpers.replace_unicode_with_latex(format_as_label(node_description)),
         )
-        if node_type == ":name" and not node_children: #TODO attention
+        is_leaf_node = not node_children
+        is_appropriate_type = node_type in [
+            ":name",
+            ":bound",
+            ":pattern-var",
+        ]  # XXX: but :bound and :arg-var are actual code, but not leaves
+        if is_leaf_node and is_appropriate_type:
             leaves.append(node_id)
         if name:
             continue
         # TODO make sure the first :name node is the name of the function
         if node_type == ":name":
-            name = format_as_label(node_description)
+            name = helpers.replace_unicode_with_latex(format_as_label(node_description))
+            G.nodes[node_id]["desc"] = "METHOD_NAME" # HACK: anonimising in place
     file.close()
     for node_id, children_ids in children.items():
         for child_id in children_ids:
@@ -229,7 +258,9 @@ def extract_file_features(file, args):
 
 def extract_dir(args):
     start = time.time()
-    helpers.write_log("Extracting " + args.dir + f" with total files {len(os.listdir(args.dir))}")
+    helpers.write_log(
+        "Extracting " + args.dir + f" with total files {len(os.listdir(args.dir))}"
+    )
     try:
         with multiprocessing.get_context("spawn").Pool(int(args.num_threads)) as p:
             result = p.starmap_async(
@@ -246,7 +277,9 @@ def extract_dir(args):
             f"Exception while extracting dir {args.dir}: ", e
         )  # TODO file parameter for logs
     stop = time.time()
-    helpers.write_log("Done extracting " + args.dir + f" in {round((stop - start)/60)} min")
+    helpers.write_log(
+        "Done extracting " + args.dir + f" in {round((stop - start)/60)} min"
+    )
     return
 
 
