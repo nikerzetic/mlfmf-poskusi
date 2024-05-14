@@ -111,12 +111,12 @@ class PathContextReader:
             processed_row = self.process_input_row(data_row)
             yield processed_row
 
-    def get_dataset(self, input_data_rows: Optional = None) -> tf.data.Dataset:
+    def get_dataset(self, input_data_rows = None) -> tf.data.Dataset:
         if self._dataset is None:
             self._dataset = self._create_dataset_pipeline(input_data_rows)
         return self._dataset
 
-    def _create_dataset_pipeline(self, input_data_rows: Optional = None) -> tf.data.Dataset:
+    def _create_dataset_pipeline(self, input_data_rows = None) -> tf.data.Dataset:
         if input_data_rows is None:
             assert not self.estimator_action.is_predict
             dataset = tf.data.experimental.CsvDataset(

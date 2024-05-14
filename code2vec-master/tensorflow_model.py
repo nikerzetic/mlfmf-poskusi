@@ -51,6 +51,15 @@ class Code2VecModel(Code2VecModelBase):
                                          config=self.config, estimator_action=EstimatorAction.Train)
         input_iterator = tf.compat.v1.data.make_initializable_iterator(train_reader.get_dataset())
         input_iterator_reset_op = input_iterator.initializer
+        # WARNING:tensorflow:From c:\Users\Nik\.vscode\extensions\ms-python.debugpy-2024.4.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_resolver.py:189: Iterator.output_classes (from tensorflow.python.data.ops.iterator_ops) is deprecated and will be removed in a future version.
+        # Instructions for updating:
+        # Use `tf.compat.v1.data.get_output_classes(iterator)`.
+        # WARNING:tensorflow:From c:\Users\Nik\.vscode\extensions\ms-python.debugpy-2024.4.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_resolver.py:189: Iterator.output_shapes (from tensorflow.python.data.ops.iterator_ops) is deprecated and will be removed in a future version.
+        # Instructions for updating:
+        # Use `tf.compat.v1.data.get_output_shapes(iterator)`.
+        # WARNING:tensorflow:From c:\Users\Nik\.vscode\extensions\ms-python.debugpy-2024.4.0-win32-x64\bundled\libs\debugpy\_vendored\pydevd\_pydevd_bundle\pydevd_resolver.py:189: Iterator.output_types (from tensorflow.python.data.ops.iterator_ops) is deprecated and will be removed in a future version.
+        # Instructions for updating:
+        # Use `tf.compat.v1.data.get_output_types(iterator)`.
         input_tensors = input_iterator.get_next()
 
         optimizer, train_loss = self._build_tf_training_graph(input_tensors)

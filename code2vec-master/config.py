@@ -203,7 +203,7 @@ class Config: #XXX: config class
 
     @property
     def model_load_dir(self):
-        return '/'.join(self.MODEL_LOAD_PATH.split('/')[:-1])
+        return '/'.join(self.MODEL_LOAD_PATH.split('/')[:-1]) #HACK: class doesn't change the validity of code, and instead relies on errors
 
     @property
     def entire_model_load_path(self) -> Optional[str]:
