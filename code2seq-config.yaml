@@ -1,4 +1,4 @@
-data_folder: ./data/code2seq/stdlib
+data_folder: ./data/code2class/stdlib
 
 checkpoint: null
 
@@ -17,8 +17,8 @@ data:
 
   # For classification, labels_count and max_label_parts should be 1
   # Each token appears at least 10 times (99.2% coverage)
-  labels_count: 5
-  max_label_parts: 7
+  labels_count: 1
+  max_label_parts: 1
   # Each token appears at least 1000 times (99.5% coverage)
   tokens_count: 5
   max_token_parts: 7

@@ -9,18 +9,18 @@ from code2seq.data.path_context_data_module import PathContextDataModule
 
 
 def model_setup(config: omegaconf.DictConfig, data_module: PathContextDataModule):
-    # model = Code2Class(  # Code2Class is apparently better for embedings
-    #     config.model,
-    #     config.optimizer,
-    #     data_module.vocabulary,
-    # )
-
-    model = Code2Seq(
+    model = Code2Class(  # Code2Class is apparently better for embedings
         config.model,
         config.optimizer,
         data_module.vocabulary,
-        config.train.teacher_forcing,
     )
+
+    # model = Code2Seq(
+    #     config.model,
+    #     config.optimizer,
+    #     data_module.vocabulary,
+    #     config.train.teacher_forcing,
+    # )
 
     return model
 
