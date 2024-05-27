@@ -7,6 +7,8 @@ import shutil
 import random
 import datetime
 import sys
+import json
+import entries_extractor as ee
 
 
 class EntryNode:
@@ -133,6 +135,12 @@ def try_unzip(zip_file, entry_dir):
 
 
 def _library_paths(library_name: str):
+    """
+    Returns the following strings:
+    - "library_name/entries"
+    - "library_name/entries.zip"
+    - "library_name/network.csv"
+    """
     entry_dir = f"{library_name}/entries"
     zip_file = f"{library_name}/entries.zip"
     network_file = f"{library_name}/network.csv"
@@ -445,6 +453,7 @@ def add_to_missing_symbols_file(s: str):
     with open(file_name, "a", encoding="utf-8") as file:
         print(f"{s}", file=file)
 
+
 def consolidate_missing_symbols_to_dict():
     missing_symbols = {}
     file_name = "missing_symbols.txt"
@@ -454,6 +463,7 @@ def consolidate_missing_symbols_to_dict():
             if not c in missing_symbols:
                 missing_symbols[c] = c.encode("unicode-escape")
     return missing_symbols
+
 
 from unicode_to_latex import unicode_to_latex
 
@@ -478,6 +488,44 @@ def replace_unicode_with_latex(s: str):
     return "".join(new_s)
 
 
+def create_dictionaries(library_name: str, save_to_file: bool = False):
+    """
+    Creates dictionaries corresponding to `entries_extractor.format_as_label`
+
+    ## Parameters
+    - library_name: the name of the library in root folder
+    - save_to_file: if set to true, saves dictionaries to 
+        - `library_name/dictionaries/raw2label.json` and 
+        - `library_name/dictionaries/label2raw.json`
+
+    ## Returns
+    - raw2label: dictionary for converting original names to labels
+    - label2raw: dictionary for converting labels to original names
+    """
+    print(f"Creating dictionaries for {library_name}...")
+    raw2label = {}
+    label2raw = {}
+    with open(os.path.join(library_name, "nodes.tsv"), "r", encoding="utf-8") as f:
+        f.readline()
+        for line in f:
+            name = line.split("\t")[0]
+            label = replace_unicode_with_latex(name).split(" ")[0]
+            raw2label[name] = label
+            label2raw[label] = name
+    if save_to_file:
+        DICT_PATH = os.path.join(library_name, "dictionaries")
+        os.makedirs(DICT_PATH, exist_ok=True)
+        with open(
+            os.path.join(DICT_PATH, "raw2label.json"), "w", encoding="utf-8"
+        ) as f:
+            json.dump(raw2label, f)
+        with open(
+            os.path.join(DICT_PATH, "label2raw.json"), "w", encoding="utf-8"
+        ) as f:
+            json.dump(label2raw, f)
+    return raw2label, label2raw
+
+
 if __name__ == "__main__":
     # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
     #     print(lib)
@@ -492,7 +540,9 @@ if __name__ == "__main__":
     # probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
     # reindex_library_asts("stdlib")
 
-    missing = consolidate_missing_symbols_to_dict()
-    for key, value in missing.items():
-        decoded_value = value.decode("ascii", "backslashreplace")
-        print(f'u"{decoded_value}": "{key}",')
+    # missing = consolidate_missing_symbols_to_dict()
+    # for key, value in missing.items():
+    #     decoded_value = value.decode("ascii", "backslashreplace")
+    #     print(f'u"{decoded_value}": "{key}",')
+
+    create_dictionaries("stdlib", True)
