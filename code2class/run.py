@@ -26,7 +26,7 @@ hyper_params = {
     "dataset_name": 'stdlib',
     "data_dir": 'data/code2class',
     # load: load saved checkpoint/model? (True to load from save: <save_dir>/<data>-model.pt)
-    "load": True,
+    "load": False,
     # save_dir: model location (<save_dir>/<data>-model.pt)
     "save_dir": 'checkpoints',
     # log_dir: log location (<log_dir>/<data>-log.txt)
@@ -45,14 +45,14 @@ hyper_params = {
     # max_path_length: max path segments in paths
     "max_path_length": 8,
     # n_epochs: number of epochs to train
-    "n_epochs": 20,
+    "n_epochs": 6,
 }
 experiment.log_parameters(hyper_params)
 
 
 # setup parameters
 
-SEED = 1234
+SEED = 42
 DATA_DIR = hyper_params["data_dir"]
 DATASET = hyper_params["dataset_name"]
 EMBEDDING_DIM = hyper_params["embedding_dim"]
@@ -293,6 +293,8 @@ def get_metrics(tensor_n, tensor_l, tensor_p, tensor_r, model, criterion, k, opt
     Takes inputs, calculates loss and other metrics, then calculates gradients and updates parameters
 
     if optimizer is None, then we are doing evaluation so no gradients are calculated and no parameters are updated
+    
+    - k: number of top predictions to accept
     """
 
     if optimizer is not None:
@@ -511,152 +513,153 @@ if os.path.exists(LOG_PATH):
     os.remove(LOG_PATH)
 
 
-# with experiment.train():
-#     for epoch in range(N_EPOCHS):
+with experiment.train():
+    for epoch in range(N_EPOCHS):
 
-#         log = f'Epoch: {epoch+1:02} - Training'
-#         with open(LOG_PATH, 'a+') as f:
+        log = f'Epoch: {epoch+1:02} - Training'
+        with open(LOG_PATH, 'a+') as f:
 
-#             f.write(log+'\n')
-#         print(log)
+            f.write(log+'\n')
+        print(log)
 
-#         train_loss, train_p, train_r, train_f1 = train(model, f'{DATA_DIR}/{DATASET}/{DATASET}.train.c2c', optimizer, criterion)
-#         experiment.log_metric("loss", train_loss, step=epoch)
-#         experiment.log_metric("precision", train_p, step=epoch)
-#         experiment.log_metric("recall", train_r, step=epoch)
-#         experiment.log_metric("f1", train_f1, step=epoch)
+        train_loss, train_p, train_r, train_f1 = train(model, f'{DATA_DIR}/{DATASET}/{DATASET}.train.c2c', optimizer, criterion)
+        experiment.log_metric("loss", train_loss, step=epoch)
+        experiment.log_metric("precision", train_p, step=epoch)
+        experiment.log_metric("recall", train_r, step=epoch)
+        experiment.log_metric("f1", train_f1, step=epoch)
 
-#         log = f'Epoch: {epoch+1:02} - Validation'
-#         with open(LOG_PATH, 'a+') as f:
-#             f.write(log+'\n')
-#         print(log)
+        log = f'Epoch: {epoch+1:02} - Validation'
+        with open(LOG_PATH, 'a+') as f:
+            f.write(log+'\n')
+        print(log)
 
-#         valid_loss, valid_p_1, valid_r_1, valid_f1_1 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 1)
-#         experiment.log_metric("validation_loss", valid_loss, step=epoch)
-#         experiment.log_metric("validation_p_at1", valid_p_1, step=epoch)
-#         experiment.log_metric("validation_r_at1", valid_r_1, step=epoch)
-#         experiment.log_metric("validation_f1_at1", valid_f1_1, step=epoch)
+        valid_loss, valid_p_1, valid_r_1, valid_f1_1 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 1)
+        experiment.log_metric("validation_loss", valid_loss, step=epoch)
+        experiment.log_metric("validation_p_at1", valid_p_1, step=epoch)
+        experiment.log_metric("validation_r_at1", valid_r_1, step=epoch)
+        experiment.log_metric("validation_f1_at1", valid_f1_1, step=epoch)
 
-#         valid_loss, valid_p_3, valid_r_3, valid_f1_3 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 3)
-#         experiment.log_metric("validation_loss", valid_loss, step=epoch)
-#         experiment.log_metric("validation_p_at3", valid_p_3, step=epoch)
-#         experiment.log_metric("validation_r_at3", valid_r_3, step=epoch)
-#         experiment.log_metric("validation_f1_at3", valid_f1_3, step=epoch)
+        valid_loss, valid_p_3, valid_r_3, valid_f1_3 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 3)
+        experiment.log_metric("validation_loss", valid_loss, step=epoch)
+        experiment.log_metric("validation_p_at3", valid_p_3, step=epoch)
+        experiment.log_metric("validation_r_at3", valid_r_3, step=epoch)
+        experiment.log_metric("validation_f1_at3", valid_f1_3, step=epoch)
 
-#         valid_loss, valid_p_5, valid_r_5, valid_f1_5 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 5)
-#         experiment.log_metric("validation_loss", valid_loss, step=epoch)
-#         experiment.log_metric("validation_p_at5", valid_p_5, step=epoch)
-#         experiment.log_metric("validation_r_at5", valid_r_5, step=epoch)
-#         experiment.log_metric("validation_f1_at5", valid_f1_5, step=epoch)
-
-
-#         if valid_loss < best_valid_loss:
-#             best_valid_loss = valid_loss
-#             torch.save(model.state_dict(), MODEL_SAVE_PATH)
-
-#         log = f'| Epoch: {epoch+1:02} |\n'
-#         log += f'| Train Loss: {train_loss:.3f} | Train Precision: {train_p:.3f} | Train Recall: {train_r:.3f} | Train F1: {train_f1:.3f} |\n'
-#         log += f'| Val. Loss: {valid_loss:.3f} | Val. Precision: {valid_p_1:.3f} | Val. Recall: {valid_r_1:.3f} | Val. F1: {valid_f1_1:.3f} |'
-#         with open(LOG_PATH, 'a+') as f:
-#             f.write(log+'\n')
-#         print(log)
+        valid_loss, valid_p_5, valid_r_5, valid_f1_5 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.val.c2c', criterion, 5)
+        experiment.log_metric("validation_loss", valid_loss, step=epoch)
+        experiment.log_metric("validation_p_at5", valid_p_5, step=epoch)
+        experiment.log_metric("validation_r_at5", valid_r_5, step=epoch)
+        experiment.log_metric("validation_f1_at5", valid_f1_5, step=epoch)
 
 
-# with experiment.test():
-#     log = 'Testing'
-#     with open(LOG_PATH, 'a+') as f:
-#         f.write(log+'\n')
-#     print(log)
+        if valid_loss < best_valid_loss:
+            best_valid_loss = valid_loss
+            torch.save(model.state_dict(), MODEL_SAVE_PATH)
 
-#     model.load_state_dict(torch.load(MODEL_SAVE_PATH))
-
-#     test_loss, test_p_1, test_r_1, test_f1_1 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 1)
-#     experiment.log_metric("loss", test_loss, step=N_EPOCHS)
-#     experiment.log_metric("precision_at1", test_p_1, step=N_EPOCHS)
-#     experiment.log_metric("recall_at1", test_r_1, step=N_EPOCHS)
-#     experiment.log_metric("f1_at1", test_f1_1, step=N_EPOCHS)
-
-#     test_loss, test_p_3, test_r_3, test_f1_3 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 3)
-#     experiment.log_metric("loss", test_loss, step=N_EPOCHS)
-#     experiment.log_metric("precision_at3", test_p_3, step=N_EPOCHS)
-#     experiment.log_metric("recall_at3", test_r_3, step=N_EPOCHS)
-#     experiment.log_metric("f1_at3", test_f1_3, step=N_EPOCHS)
-
-#     test_loss, test_p_5, test_r_5, test_f1_5 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 5)
-#     experiment.log_metric("loss", test_loss, step=N_EPOCHS)
-#     experiment.log_metric("precision_at5", test_p_5, step=N_EPOCHS)
-#     experiment.log_metric("recall_at5", test_r_5, step=N_EPOCHS)
-#     experiment.log_metric("f1_at5", test_f1_5, step=N_EPOCHS)
-
-#     log = f'| Test Loss: {test_loss:.3f} | Test Precision: {test_p_1:.3f} | Test Recall: {test_r_1:.3f} | Test F1: {test_f1_1:.3f} |'
-#     with open(LOG_PATH, 'a+') as f:
-#         f.write(log+'\n')
-#     print(log)
+        log = f'| Epoch: {epoch+1:02} |\n'
+        log += f'| Train Loss: {train_loss:.3f} | Train Precision: {train_p:.3f} | Train Recall: {train_r:.3f} | Train F1: {train_f1:.3f} |\n'
+        log += f'| Val. Loss: {valid_loss:.3f} | Val. Precision: {valid_p_1:.3f} | Val. Recall: {valid_r_1:.3f} | Val. F1: {valid_f1_1:.3f} |'
+        with open(LOG_PATH, 'a+') as f:
+            f.write(log+'\n')
+        print(log)
 
 
-def get_embeddings(path: str):
-    def _write_embedding_to_file(examples, N):
-        for tensor_n, tensor_l, tensor_p, tensor_r, _ in numericalize(examples, N):
-
-            #place on gpu
-
-            tensor_n = tensor_n.to(device)
-            tensor_l = tensor_l.to(device)
-            tensor_p = tensor_p.to(device)
-            tensor_r = tensor_r.to(device)
-
-            #put into model
-            with torch.no_grad():
-                embedded_asts = model.forward(tensor_l, tensor_p, tensor_r)
-
-            with open(EMBEDDINGS_PATH, "a+") as e_file:
-                for example, embedding in zip(examples, embedded_asts):
-                    e_file.write(f"{example[0]}")
-                    for element in embedding:
-                        e_file.write(f"\t{element.item()}")
-                    e_file.write("\n")
-        
-    log = 'Embedding ASTs'
+with experiment.test():
+    log = 'Testing'
     with open(LOG_PATH, 'a+') as f:
         f.write(log+'\n')
     print(log)
 
     model.load_state_dict(torch.load(MODEL_SAVE_PATH))
 
-    model.eval()
+    test_loss, test_p_1, test_r_1, test_f1_1 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 1)
+    experiment.log_metric("loss", test_loss, step=N_EPOCHS)
+    experiment.log_metric("precision_at1", test_p_1, step=N_EPOCHS)
+    experiment.log_metric("recall_at1", test_r_1, step=N_EPOCHS)
+    experiment.log_metric("f1_at1", test_f1_1, step=N_EPOCHS)
 
-    n_batches = 0
-    
-    examples = []
-    
-    for example_name, example_body, example_length in file_iterator(path):
+    test_loss, test_p_3, test_r_3, test_f1_3 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 3)
+    experiment.log_metric("loss", test_loss, step=N_EPOCHS)
+    experiment.log_metric("precision_at3", test_p_3, step=N_EPOCHS)
+    experiment.log_metric("recall_at3", test_r_3, step=N_EPOCHS)
+    experiment.log_metric("f1_at3", test_f1_3, step=N_EPOCHS)
 
-        examples.append((example_name, example_body, example_length))
+    test_loss, test_p_5, test_r_5, test_f1_5 = evaluate(model, f'{DATA_DIR}/{DATASET}/{DATASET}.test.c2c', criterion, 5)
+    experiment.log_metric("loss", test_loss, step=N_EPOCHS)
+    experiment.log_metric("precision_at5", test_p_5, step=N_EPOCHS)
+    experiment.log_metric("recall_at5", test_r_5, step=N_EPOCHS)
+    experiment.log_metric("f1_at5", test_f1_5, step=N_EPOCHS)
 
-        if len(examples) >= (BATCH_SIZE * CHUNKS):
-            _write_embedding_to_file(examples, CHUNKS)
-            n_batches += 1
-            log = f'\t| Batches: {n_batches} |\n'
-            with open(LOG_PATH, 'a+') as f:
-                f.write(log+'\n')
-            print(log)
-            examples = []
-        else:
-            pass
-      
-    #outside of for line in f, but will still have some examples left over
-
-    n = len(examples)//BATCH_SIZE
-    _write_embedding_to_file(examples, n)
-    n_batches += 1
+    log = f'| Test Loss: {test_loss:.3f} | Test Precision: {test_p_1:.3f} | Test Recall: {test_r_1:.3f} | Test F1: {test_f1_1:.3f} |'
     with open(LOG_PATH, 'a+') as f:
         f.write(log+'\n')
     print(log)
 
 
-with open(EMBEDDINGS_PATH, "w") as e_file:
-    dims = "\t".join([f"x{i}" for i in range(EMBEDDING_DIM)])
-    e_file.write(f"name\t{dims}\n")
+# def get_embeddings(path: str):
+#     def _write_embedding_to_file(examples, N):
+#         for tensor_n, tensor_l, tensor_p, tensor_r, _ in numericalize(examples, N):
 
-for word in ["train", "test", "val"]:
-    get_embeddings(f'{DATA_DIR}/{DATASET}/{DATASET}.{word}.c2c')
+#             #place on gpu
+
+#             tensor_n = tensor_n.to(device)
+#             tensor_l = tensor_l.to(device)
+#             tensor_p = tensor_p.to(device)
+#             tensor_r = tensor_r.to(device)
+
+#             #put into model
+#             with torch.no_grad():
+#                 embedded_asts = model.forward(tensor_l, tensor_p, tensor_r)
+
+#             with open(EMBEDDINGS_PATH, "a+") as e_file:
+#                 for id_tensor, embedding in zip(tensor_n, embedded_asts):
+#                     id = id_tensor.nonzero()
+#                     id = id[0].item()
+#                     label = idx2target[id]
+#                     e_file.write(f"\n{label}")
+#                     for element in embedding:
+#                         e_file.write(f"\t{element.item()}")
+                    
+        
+#     log = 'Embedding ASTs'
+#     with open(LOG_PATH, 'a+') as f:
+#         f.write(log+'\n')
+#     print(log)
+
+#     model.load_state_dict(torch.load(MODEL_SAVE_PATH))
+
+#     model.eval()
+
+#     n_batches = 0
+    
+#     examples = []
+    
+#     for example_name, example_body, example_length in file_iterator(path):
+
+#         examples.append((example_name, example_body, example_length))
+
+#         if len(examples) >= (BATCH_SIZE * CHUNKS):
+#             _write_embedding_to_file(examples, CHUNKS)
+#             n_batches += 1
+#             log = f'\t| Batches: {n_batches} |\n'
+#             with open(LOG_PATH, 'a+') as f:
+#                 f.write(log+'\n')
+#             print(log)
+#             examples = []
+#         else:
+#             pass
+      
+#     n = len(examples)//BATCH_SIZE
+#     _write_embedding_to_file(examples, n)
+#     n_batches += 1
+#     with open(LOG_PATH, 'a+') as f:
+#         f.write(log+'\n')
+#     print(log)
+
+
+# with open(EMBEDDINGS_PATH, "w") as e_file:
+#     dims = "\t".join([f"x{i}" for i in range(EMBEDDING_DIM)])
+#     e_file.write(f"name\t{dims}")
+
+# for word in ["train", "test", "val"]:
+#     get_embeddings(f'{DATA_DIR}/{DATASET}/{DATASET}.{word}.c2c')
