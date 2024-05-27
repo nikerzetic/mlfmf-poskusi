@@ -65,7 +65,6 @@ def test_replace_unicode_with_latex():
         results[word] = new
 
 
-
 if __name__ == "__main__":
     # test_generate_path_features_for_function()
     test_replace_unicode_with_latex()
