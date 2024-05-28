@@ -9,6 +9,7 @@ import datetime
 import sys
 import json
 import entries_extractor as ee
+import multiprocessing as mp
 
 
 class EntryNode:
@@ -494,8 +495,8 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
 
     ## Parameters
     - library_name: the name of the library in root folder
-    - save_to_file: if set to true, saves dictionaries to 
-        - `library_name/dictionaries/raw2label.json` and 
+    - save_to_file: if set to true, saves dictionaries to
+        - `library_name/dictionaries/raw2label.json` and
         - `library_name/dictionaries/label2raw.json`
 
     ## Returns
@@ -526,6 +527,73 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
     return raw2label, label2raw
 
 
+def extract_tokens_from_dag(file_path: str, D: dict[dict[str, int]]):
+    if not file_path.endswith(".dag"):
+        return
+    with open(file_path, "r", encoding="utf-8") as f:
+        f.readline()  # id, type, description, children ids
+        for line in f:
+            parts = line.split("\t")
+            node_type = parts[1]
+            if not node_type in D["type2id"]:
+                D["counter"] += 1
+                id = D["counter"]
+                D["type2id"][node_type] = id
+                D["id2type"][id] = node_type
+
+
+def create_tokenization_dictionaries(library_name: str, save_to_file: bool = False):
+    """
+    Creates a tokenization dictionary that replaces each token with a unique id
+
+    ## Parameters
+    - library_name: the name of the library in root folder
+    - save_to_file: if set to true, saves dictionaries to
+        - `library_name/dictionaries/type2id.json` and
+        - `library_name/dictionaries/id2type.json`
+
+    ## Returns
+    - type2id:
+    - id2type:
+    """
+    entries_dir = os.path.join(library_name, "entries")
+    print(f"Creating token dictionaries for {library_name}...")
+    manager = mp.Manager()
+    dictionaries = manager.dict()
+    type2id = manager.dict()
+    id2type = manager.dict()
+    dictionaries["counter"] = 0
+    dictionaries["type2id"] = type2id
+    dictionaries["id2type"] = id2type
+    pool = mp.get_context("spawn").Pool(32)
+
+    jobs = []
+    for file in os.listdir(entries_dir):
+        file_path = os.path.join(entries_dir, file)
+        job = pool.apply_async(extract_tokens_from_dag, (file_path, dictionaries))
+        jobs.append(job)
+
+    for job in tqdm.tqdm(jobs):
+        job.get()
+
+    pool.close()
+    pool.join()
+
+    print(f"Unique types: {dictionaries['counter']}")
+
+    type2id = dictionaries["type2id"]
+    id2type = dictionaries["id2type"]
+
+    if save_to_file:
+        DICT_PATH = os.path.join(library_name, "dictionaries")
+        os.makedirs(DICT_PATH, exist_ok=True)
+        with open(os.path.join(DICT_PATH, "type2id.json"), "w", encoding="utf-8") as f:
+            json.dump(type2id, f)
+        with open(os.path.join(DICT_PATH, "id2type.json"), "w", encoding="utf-8") as f:
+            json.dump(id2type, f)
+    return type2id, id2type
+
+
 if __name__ == "__main__":
     # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
     #     print(lib)
@@ -545,4 +613,5 @@ if __name__ == "__main__":
     #     decoded_value = value.decode("ascii", "backslashreplace")
     #     print(f'u"{decoded_value}": "{key}",')
 
-    create_dictionaries("stdlib", True)
+    # create_dictionaries("stdlib", True)
+    create_tokenization_dictionaries("stdlib", True)

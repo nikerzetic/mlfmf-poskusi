@@ -144,36 +144,47 @@ def generate_path_features_for_function(
     return features
 
 
-def format_as_label(s: str, separator="|"):
-    # We assume only the last part of each string is relavant (other are module imports)
-    relevant = s.split(".")[-1]
+def format_as_label(s: str, trim_modules=False, separator="|", alt_separator="∣"):
+    def append_lower_char(c: str):
+        # Sometimes | appear in words
+        if c == separator:
+            new_s.append(alt_separator)
+        else:
+            new_s.append(c.lower())
+
     # We drop the number that usually follows a name and a possible "
-    w = relevant.split(" ")[0].replace(
+    w = s.split(" ")[0].replace(
         '"', ""
     )  # HACK: this should be parsed without the need to replace
+    if trim_modules:
+        # We assume only the last part of each string is relavant (other are module imports)
+        w = w.split(".")[-1]
     new_s = []
     if len(w) == 1:
-        new_s.append(w.lower())
+        append_lower_char(w)
     for i in range(len(w) - 1):
-        middle_dash = w[i] in "-" and not i == 0
+
+        middle_connector = w[i] in ".-" and not i == 0
         is_sepparator = (
             (w[i].islower() and w[i + 1].isupper())
             or not (w[i].isalpha() and w[i + 1].isalpha())
-            or w[i + 1] == "_"
+            or w[i + 1] in "_"
         )
-        if not middle_dash:
-            new_s.append(w[i].lower())
+        if not middle_connector:
+            append_lower_char(w[i])
         # To avoid repeating separators
         separator_already_included = new_s and new_s[-1] == separator
         if is_sepparator and not separator_already_included:
             new_s.append(separator)
         if i + 1 == len(w) - 1:
-            new_s.append(w[i + 1].lower())
+            append_lower_char(w[i + 1])
     # join is faster then str +=
     return "".join(new_s)
 
 
-def extract_graph(file_path):
+def extract_graph(
+    file_path: str, token_dict: dict = None
+) -> tuple[nx.DiGraph, list[str], str]:
     children = {}
     G = nx.DiGraph()
     leaves = []
@@ -190,7 +201,8 @@ def extract_graph(file_path):
         children[node_id] = node_children
         G.add_node(
             node_id,
-            type=node_type.replace(":", ""),
+            type=node_type,
+            # type=node_type.replace(":", ""),
             desc=helpers.replace_unicode_with_latex(format_as_label(node_description)),
         )
         is_leaf_node = not node_children
@@ -206,17 +218,21 @@ def extract_graph(file_path):
         # TODO make sure the first :name node is the name of the function
         if node_type == ":name":
             name = helpers.replace_unicode_with_latex(format_as_label(node_description))
-            G.nodes[node_id]["desc"] = "METHOD_NAME" # HACK: anonimising in place
+            G.nodes[node_id]["desc"] = "METHOD_NAME"  # HACK: anonimising in place
     file.close()
     for node_id, children_ids in children.items():
         for child_id in children_ids:
             G.add_edge(node_id, child_id)
+    if token_dict:
+        for node in G.nodes:
+            node_type = G.nodes[node]["type"] 
+            G.nodes[node]["type"] = token_dict[node_type]
     return G, leaves, name
 
 
 # mirror original extractSingleFile
-def extract_single_entry_file(file_path, args):
-    graph, leaves, name = extract_graph(file_path)
+def extract_entry_file(file_path, args, token_dict: dict = None):
+    graph, leaves, name = extract_graph(file_path, token_dict)
     separator = " "
     # if args.pretty_print:
     #     separator = "\n\t"
@@ -226,7 +242,7 @@ def extract_single_entry_file(file_path, args):
     if not features:
         return None
     # TODO separators as args
-    return name + separator + separator.join(features)
+    return "\n" + name + separator + separator.join(features)
     # TODO should log how many were skipped
 
 
@@ -242,7 +258,7 @@ def extract_file_features(file, args):
     helpers.write_log("Extracting " + file.replace(".dag", ""), LOG_FILE)
     start_time = time.time()
     with open(tmp_file, "a", encoding="utf-8") as tmp:
-        to_print = extract_single_entry_file(entry_file, args)
+        to_print = extract_entry_file(entry_file, args)
         if to_print:
             print(
                 to_print,
