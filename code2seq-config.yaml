@@ -1,6 +1,6 @@
-data_folder: ./data/code2class/stdlib
+data_folder: ./data/code2seq/stdlib
 
-checkpoint: null
+checkpoint: D:/Nik/Projects/mlfmf-poskusi/lightning_logs/version_0/checkpoints/epoch=9-step=639.ckpt
 
 seed: 42
 progress_bar_refresh_rate: 1
@@ -12,23 +12,22 @@ wandb:
   offline: true
 
 data:
-  # 0 workers runs on GPU
-  num_workers: 0
+  num_workers: 5
 
   # For classification, labels_count and max_label_parts should be 1
   # Each token appears at least 10 times (99.2% coverage)
   labels_count: 1
-  max_label_parts: 1
+  max_label_parts: 10
   # Each token appears at least 1000 times (99.5% coverage)
-  tokens_count: 5
-  max_token_parts: 7
+  tokens_count: 1
+  max_token_parts: 10
   path_length: 9
 
   max_context: 200
   random_context: true
 
-  batch_size: 512
-  test_batch_size: 768
+  batch_size: 128
+  test_batch_size: 128
 
 model:
   # Encoder
@@ -39,11 +38,6 @@ model:
   rnn_num_layers: 1
 
   # Decoder
-  # Code2Class
-  classifier_size: 128 
-  classifier_layers: 2
-  activation: "relu"
-  # Code2Seq
   decoder_size: 128 
   decoder_num_layers: 1
   rnn_dropout: 0.5
@@ -56,7 +50,7 @@ optimizer:
   decay_gamma: 0.95
 
 train:
-  dev_run_n: false # false to not run in dev mode
+  dev_run_n: false # false to not run in dev mode; or an int to run for that many epoch
   n_gpus: 1
   n_epochs: 10
   patience: 10
@@ -64,4 +58,7 @@ train:
   teacher_forcing: 1.0
   val_every_epoch: 1
   save_every_epoch: 1
-  log_every_n_steps: 1
+  log_every_n_steps: 5
+
+predict:
+  file_path: data/embeddings/code2seq.tsv
