@@ -190,8 +190,7 @@ def extract_graph(
     leaves = []
     name = None
     file = open(file_path, "r", encoding="utf-8")
-    if not str(file).endswith(".dag"):
-        file.readline()  # Skip column names id, type, description, children ids
+    file.readline()  # Skip column names id, type, description, children ids
     for line in file:
         parts = line.split("\t")
         node_id = int(parts[0])
@@ -201,8 +200,7 @@ def extract_graph(
         children[node_id] = node_children
         G.add_node(
             node_id,
-            type=node_type,
-            # type=node_type.replace(":", ""),
+            type=node_type.replace(":", ""),
             desc=helpers.replace_unicode_with_latex(format_as_label(node_description)),
         )
         is_leaf_node = not node_children
@@ -226,7 +224,7 @@ def extract_graph(
     if token_dict:
         for node in G.nodes:
             node_type = G.nodes[node]["type"] 
-            G.nodes[node]["type"] = token_dict[node_type]
+            G.nodes[node]["type"] = str(token_dict[node_type])
     return G, leaves, name
 
 
@@ -234,13 +232,11 @@ def extract_graph(
 def extract_entry_file(file_path, args, token_dict: dict = None):
     graph, leaves, name = extract_graph(file_path, token_dict)
     separator = " "
-    # if args.pretty_print:
-    #     separator = "\n\t"
+    if len(graph.nodes) > 700: #XXX: should be a parameters
+        return "\n" + name
     features = generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )
-    if not features:
-        return None
     # TODO separators as args
     return "\n" + name + separator + separator.join(features)
     # TODO should log how many were skipped

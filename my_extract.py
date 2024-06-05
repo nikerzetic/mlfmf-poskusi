@@ -13,6 +13,51 @@ import entries_extractor as ee
 import multiprocessing as mp
 
 
+def single_thread_extract_dir(dir, args):
+    with open(os.path.join("stdlib", "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+        type2id = json.load(f)
+    
+    to_print = []
+    for file in tqdm.tqdm(os.listdir(args.dir)):
+        file_path = os.path.join(args.dir, file)
+        result = ee.extract_entry_file(file_path, args, type2id)
+        to_print.append(result)
+
+    print("Writing output to file...")
+    with open(args.out_file, "w", encoding="utf-8") as f:
+        f.writelines(to_print)
+
+
+def new_extract_dir(dir, args):
+    with open(os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+        type2id = json.load(f)
+
+    #TODO: batch load entries if neccessary
+    entries_dir = os.path.join(dir, "entries")
+    entries = helpers.load_entries(entries_dir)
+
+    manager = mp.Manager()
+    q = manager.Queue()
+    type_dict = manager.dict(type2id)
+
+    pool = mp.get_context("spawn").Pool(
+        int(args.num_threads)
+    )  # TODO: number of processes
+    writer = pool.apply_async(write_queue_to_file, (args.out_file, q))
+
+    jobs = []
+    for file in os.listdir(args.dir):
+        job = pool.apply_async(extract_entry_file_to_queue, (file, q, args, type_dict))
+        jobs.append(job)
+
+    for job in tqdm.tqdm(jobs):
+        job.get()
+
+    q.put("\t\t\tkill")
+    pool.close()
+    pool.join()
+
+
 def get_immediate_subdirectories(a_dir):
     return [
         (os.path.join(a_dir, name))
@@ -96,7 +141,7 @@ def main(args):
         "Extracting " + args.dir + f" with total files {len(os.listdir(args.dir))}"
     )
 
-    extract_dir(args.dir, args)
+    single_thread_extract_dir(args.dir, args)
 
     stop = time.time()
     helpers.write_log(f"Done extracting {args.dir} in {round((stop - start)/60)} min")

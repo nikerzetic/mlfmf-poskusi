@@ -96,7 +96,7 @@ def load_entry(entry_file):
     return Entry(name, root)
 
 
-def load_entries(entry_dir):
+def load_entries(entry_dir: str) -> list[Entry]:
     entries = []
     print("Loading entries ...")
     for file in tqdm.tqdm(os.listdir(entry_dir)):
@@ -108,7 +108,7 @@ def load_entries(entry_dir):
     return entries
 
 
-def load_graph(graph_file):
+def load_graph(graph_file: str) -> nx.MultiDiGraph:
     graph = nx.MultiDiGraph()
     print("Loading network ...")
     with open(graph_file, encoding="utf-8") as f:
@@ -160,7 +160,12 @@ def _library_invalid(library_name):
     return bad
 
 
-def load_library(library_name):
+def load_library(library_name: str) -> tuple[list[Entry], nx.MultiDiGraph]:
+    """
+    ## Returns
+    - entries
+    - network
+    """
     entry_dir, zip_file, network_file = _library_paths(library_name)
     if not os.path.exists(entry_dir):
         if os.path.exists(zip_file):
@@ -283,8 +288,20 @@ def probibalistic_copy_entries_into_train_val_test_directories(
     )
 
 
-def entry_to_dag(entry: Entry):
-    pass
+def add_children_to_graph(G: nx.DiGraph, e: EntryNode):
+    for child in e.children:
+        add_children_to_graph(G, child)
+
+    G.add_node(e.id, type=e.type.replace(":", ""), desc=e.description)
+
+    for child in e.children:
+        G.add_edge(e.id, child.id)
+
+
+def entry_to_dag(entry: Entry) -> nx.DiGraph:
+    G = nx.DiGraph()
+    add_children_to_graph(G, entry.root)
+    return G
 
 
 def write_entry_node(node: EntryNode, id: int):
@@ -527,21 +544,41 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
     return raw2label, label2raw
 
 
-def extract_tokens_from_dag(file_path: str, D: dict[dict[str, int]]):
-    if not file_path.endswith(".dag"):
-        return
-    with open(file_path, "r", encoding="utf-8") as f:
-        f.readline()  # id, type, description, children ids
-        for line in f:
-            parts = line.split("\t")
-            node_type = parts[1]
-            if not node_type in D["type2id"]:
-                D["counter"] += 1
-                id = D["counter"]
-                D["type2id"][node_type] = id
-                D["id2type"][id] = node_type
+def tokenization(library: str, save_to_file: bool = False):
+    counter = 0
+    type2id = {}
+    id2type = {}
+    entries, _ = load_library(library)
+    for entry in tqdm.tqdm(entries):
+        G = entry_to_dag(entry)
+        for node in G.nodes:
+            type = G.nodes[node]["type"]
+            if not type in type2id:
+                counter += 1
+                type2id[type] = counter
+                id2type[counter] = type
+    if save_to_file:
+        dict_path = os.path.join(library, "dictionaries")
+        os.makedirs(dict_path, exist_ok=True)
+        with open(os.path.join(dict_path, "type2id.json"), "w", encoding="utf-8") as f:
+            json.dump(type2id, f)
+        with open(os.path.join(dict_path, "id2type.json"), "w", encoding="utf-8") as f:
+            json.dump(id2type, f)
+    return type2id, id2type
 
 
+def extract_tokens_from_dag(entry: Entry, D: dict[dict[str, int]]):
+    G = entry_to_dag(entry)
+    for node in G.nodes:
+        node_type = G.nodes[node]["type"]
+        if not node_type in D["type2id"]:
+            D["counter"] += 1
+            id = D["counter"]
+            D["type2id"][node_type] = id
+            D["id2type"][id] = node_type
+
+
+# Somehow, this is slower than tokenization
 def create_tokenization_dictionaries(library_name: str, save_to_file: bool = False):
     """
     Creates a tokenization dictionary that replaces each token with a unique id
@@ -557,6 +594,7 @@ def create_tokenization_dictionaries(library_name: str, save_to_file: bool = Fal
     - id2type:
     """
     entries_dir = os.path.join(library_name, "entries")
+    entries = load_entries(entries_dir)
     print(f"Creating token dictionaries for {library_name}...")
     manager = mp.Manager()
     dictionaries = manager.dict()
@@ -568,9 +606,8 @@ def create_tokenization_dictionaries(library_name: str, save_to_file: bool = Fal
     pool = mp.get_context("spawn").Pool(32)
 
     jobs = []
-    for file in os.listdir(entries_dir):
-        file_path = os.path.join(entries_dir, file)
-        job = pool.apply_async(extract_tokens_from_dag, (file_path, dictionaries))
+    for entry in entries:
+        job = pool.apply_async(extract_tokens_from_dag, (entry, dictionaries))
         jobs.append(job)
 
     for job in tqdm.tqdm(jobs):
@@ -614,4 +651,4 @@ if __name__ == "__main__":
     #     print(f'u"{decoded_value}": "{key}",')
 
     # create_dictionaries("stdlib", True)
-    create_tokenization_dictionaries("stdlib", True)
+    tokenization("stdlib", True)
