@@ -14,9 +14,11 @@ import multiprocessing as mp
 
 
 def single_thread_extract_dir(dir, args):
-    with open(os.path.join("stdlib", "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+    with open(
+        os.path.join("stdlib", "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
         type2id = json.load(f)
-    
+
     to_print = []
     for file in tqdm.tqdm(os.listdir(args.dir)):
         file_path = os.path.join(args.dir, file)
@@ -29,10 +31,12 @@ def single_thread_extract_dir(dir, args):
 
 
 def new_extract_dir(dir, args):
-    with open(os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+    with open(
+        os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
         type2id = json.load(f)
 
-    #TODO: batch load entries if neccessary
+    # TODO: batch load entries if neccessary
     entries_dir = os.path.join(dir, "entries")
     entries = helpers.load_entries(entries_dir)
 
@@ -106,7 +110,9 @@ def extract_entry_file_to_queue(file: str, q: mp.Queue, args, type_dict: dict):
 
 def extract_dir(dir, args):  # TODO recursive extract dir
     # TODO: dictionary
-    with open(os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+    with open(
+        os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
         type2id = json.load(f)
     subdirs = get_immediate_subdirectories(dir)
     to_extract = (
@@ -155,6 +161,7 @@ if __name__ == "__main__":
         dest="max_path_length",
         required=False,
         default=8,
+        type=int,
     )
     parser.add_argument(
         "-maxwidth",
@@ -162,9 +169,15 @@ if __name__ == "__main__":
         dest="max_path_width",
         required=False,
         default=2,
+        type=int,
     )
     parser.add_argument(
-        "-threads", "--num_threads", dest="num_threads", required=False, default=64
+        "-threads",
+        "--num_threads",
+        dest="num_threads",
+        required=False,
+        default=64,
+        type=int,
     )
     # TODO: change to something more appropriate
     parser.add_argument("-j", "--jar", dest="jar", required=False)
@@ -179,6 +192,14 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument("-out_file", "--out_file", dest="out_file", required=True)
+    parser.add_argument(
+        "-max_leaves",
+        "--max_leaves",
+        dest="max_leaves",
+        required=False,
+        default=500,
+        type=int,
+    )
 
     args = parser.parse_args()
     helpers.write_log(

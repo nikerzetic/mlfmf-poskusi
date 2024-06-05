@@ -6,6 +6,7 @@ import datetime
 import helpers
 import tqdm
 import time
+import random
 import networkx as nx
 from argparse import ArgumentParser
 from extract import concatenate_dir_files
@@ -201,7 +202,7 @@ def extract_graph(
         G.add_node(
             node_id,
             type=node_type.replace(":", ""),
-            desc=helpers.replace_unicode_with_latex(format_as_label(node_description)),
+            desc=helpers.replace_unicode_with_latex(format_as_label(node_description, trim_modules=True)),
         )
         is_leaf_node = not node_children
         is_appropriate_type = node_type in [
@@ -232,8 +233,8 @@ def extract_graph(
 def extract_entry_file(file_path, args, token_dict: dict = None):
     graph, leaves, name = extract_graph(file_path, token_dict)
     separator = " "
-    if len(graph.nodes) > 700: #XXX: should be a parameters
-        return "\n" + name
+    if len(leaves) > args.max_leaves: #XXX: should be a parameters
+        leaves = random.sample(leaves, args.max_leaves)
     features = generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )

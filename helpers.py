@@ -10,6 +10,7 @@ import sys
 import json
 import entries_extractor as ee
 import multiprocessing as mp
+import numpy as np
 
 
 class EntryNode:
@@ -631,6 +632,60 @@ def create_tokenization_dictionaries(library_name: str, save_to_file: bool = Fal
     return type2id, id2type
 
 
+def count_tokens_in_file(file_path: str):
+    max_parts = {"label": 0, "token": 0, "path": 0}
+    max_values = {"label": "", "token": "", "path": ""}
+    total_each = {"label": [], "token": [], "path": []}
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in tqdm.tqdm(f):
+            parts = line.strip("\n").split(" ")
+            label_parts = parts[0].count("|")
+            total_each["label"].append(label_parts)
+            if label_parts > max_parts["label"]:
+                max_parts["label"] = label_parts
+                max_values["label"] = parts[0]
+            for context in parts[1:]:
+                if context == "":
+                    break
+                subparts = context.split(",")
+
+                token_parts = subparts[0].count("|")
+                if token_parts > max_parts["token"]:
+                    max_parts["token"] = token_parts
+                    max_values["token"] = subparts[0]
+                total_each["token"].append(token_parts)
+
+                path_nodes = subparts[1].count("|")
+                if path_nodes > max_parts["path"]:
+                    max_parts["path"] = path_nodes
+                    max_values["path"] = subparts[1]
+                total_each["path"].append(path_nodes)
+
+                token_parts = subparts[2].count("|")
+                if token_parts > max_parts["token"]:
+                    max_parts["token"] = token_parts
+                    max_values["token"] = subparts[2]
+                total_each["token"].append(token_parts)
+    print(
+        "Max parts:",
+        "\n\tLabel:", max_parts["label"],
+        "\n\t\t", max_values["label"],
+        "\n\tToken:", max_parts["token"],
+        "\n\t\t", max_values["token"],
+        "\n\tPath:", max_parts["path"],
+        "\n\t\t", max_values["path"],
+        "\nMean parts:",
+        "\n\tLabel:", np.mean(total_each["label"]),
+        "\n\tToken:", np.mean(total_each["token"]),
+        "\n\tPath:", np.mean(total_each["path"]),
+        "\nMedian parts:",
+        "\n\tLabel:", np.median(total_each["label"]),
+        "\n\tToken:", np.median(total_each["token"]),
+        "\n\tPath:", np.median(total_each["path"]),
+          )
+
+
+
 if __name__ == "__main__":
     # for lib in ["stdlib", "TypeTopology", "unimath", "mathlib"]:
     #     print(lib)
@@ -651,4 +706,5 @@ if __name__ == "__main__":
     #     print(f'u"{decoded_value}": "{key}",')
 
     # create_dictionaries("stdlib", True)
-    tokenization("stdlib", True)
+    # tokenization("stdlib", True)
+    count_tokens_in_file("data/code2seq/stdlib/predict.c2s")

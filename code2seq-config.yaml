@@ -1,6 +1,7 @@
 data_folder: ./data/code2seq/stdlib
 
-checkpoint: D:/Nik/Projects/mlfmf-poskusi/lightning_logs/version_0/checkpoints/epoch=9-step=639.ckpt
+# checkpoint: D:/Nik/Projects/mlfmf-poskusi/lightning_logs/version_0/checkpoints/epoch=9-step=639.ckpt
+checkpoint: false
 
 seed: 42
 progress_bar_refresh_rate: 1
@@ -17,11 +18,11 @@ data:
   # For classification, labels_count and max_label_parts should be 1
   # Each token appears at least 10 times (99.2% coverage)
   labels_count: 1
-  max_label_parts: 10
+  max_label_parts: 14
   # Each token appears at least 1000 times (99.5% coverage)
   tokens_count: 1
-  max_token_parts: 10
-  path_length: 9
+  max_token_parts: 4
+  path_length: 5
 
   max_context: 200
   random_context: true
