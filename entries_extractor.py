@@ -214,7 +214,6 @@ def extract_graph(
             leaves.append(node_id)
         if name:
             continue
-        # TODO make sure the first :name node is the name of the function
         if node_type == ":name":
             name = helpers.replace_unicode_with_latex(format_as_label(node_description))
             G.nodes[node_id]["desc"] = "METHOD_NAME"  # HACK: anonimising in place

@@ -1,7 +1,7 @@
 data_folder: ./data/code2seq/stdlib
 
-# checkpoint: D:/Nik/Projects/mlfmf-poskusi/lightning_logs/version_0/checkpoints/epoch=9-step=639.ckpt
-checkpoint: false
+checkpoint: D:/Nik/Projects/mlfmf-poskusi/lightning_logs/version_2/checkpoints/epoch=9-step=779.ckpt
+# checkpoint: false
 
 seed: 42
 progress_bar_refresh_rate: 1
@@ -62,4 +62,5 @@ train:
   log_every_n_steps: 5
 
 predict:
-  file_path: data/embeddings/code2seq.tsv
+  embeddings_path: data/embeddings/code2seq/stdlib.tsv # TODO: makedir
+  compare_path: stdlib/predictions_comparison.tsv
