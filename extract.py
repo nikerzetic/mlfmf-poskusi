@@ -32,7 +32,7 @@ def concatenate_dir_files(
     files = os.listdir(dir)
     for file in files:
         path = os.path.join(os.path.abspath(dir), file)
-        os.system(f"type {path}{to_path}") #TODO this only writes the last file to out_file
+        os.system(f"type {path}{to_path}") #BUG this only writes the last file to out_file
         os.remove(path)
     shutil.rmtree(dir)
 

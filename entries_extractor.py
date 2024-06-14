@@ -6,28 +6,10 @@ import datetime
 import helpers
 import tqdm
 import time
+import random
 import networkx as nx
 from argparse import ArgumentParser
 from extract import concatenate_dir_files
-
-
-def hash_string(s: str):
-    """
-    Mirrors Java String.hashCode() method. To be consistent with original code.
-    """
-    if not s:
-        return 0
-    sum = 0
-    for c in s:
-        sum = 31 * sum + ord(c)  # ord returns the value of char c
-    return sum
-
-
-def hash_path(G: nx.Graph, path: list):
-    # path of types
-    return hash_string("/".join([G.nodes[id]["type"] for id in path]))
-    # return hash_string("/".join(path[1:-1]))
-    # TODO: better path embedding
 
 
 def get_tree_stack(G: nx.DiGraph, node):
@@ -144,13 +126,16 @@ def generate_path_features_for_function(
     return features
 
 
-def format_as_label(s: str, trim_modules=False, separator="|", alt_separator="∣"):
+def format_as_label(
+    s: str,
+    trim_modules=False,
+    separator="|",
+    alt_separators: dict = {"|": "∣", ",": "，"},
+):
     def append_lower_char(c: str):
-        # Sometimes | appear in words
-        if c == separator:
-            new_s.append(alt_separator)
-        else:
-            new_s.append(c.lower())
+        # Sometimes | and , appear in words
+        # We check if the character appears in alt_separators, replace it if it does, or lower-case it
+        new_s.append(alt_separators.get(c, c.lower()))
 
     # We drop the number that usually follows a name and a possible "
     w = s.split(" ")[0].replace(
@@ -190,8 +175,7 @@ def extract_graph(
     leaves = []
     name = None
     file = open(file_path, "r", encoding="utf-8")
-    if not str(file).endswith(".dag"):
-        file.readline()  # Skip column names id, type, description, children ids
+    file.readline()  # Skip column names id, type, description, children ids
     for line in file:
         parts = line.split("\t")
         node_id = int(parts[0])
@@ -201,9 +185,10 @@ def extract_graph(
         children[node_id] = node_children
         G.add_node(
             node_id,
-            type=node_type,
-            # type=node_type.replace(":", ""),
-            desc=helpers.replace_unicode_with_latex(format_as_label(node_description)),
+            type=node_type.replace(":", ""),
+            desc=helpers.replace_unicode_with_latex(
+                format_as_label(node_description, trim_modules=True)
+            ),
         )
         is_leaf_node = not node_children
         is_appropriate_type = node_type in [
@@ -215,7 +200,6 @@ def extract_graph(
             leaves.append(node_id)
         if name:
             continue
-        # TODO make sure the first :name node is the name of the function
         if node_type == ":name":
             name = helpers.replace_unicode_with_latex(format_as_label(node_description))
             G.nodes[node_id]["desc"] = "METHOD_NAME"  # HACK: anonimising in place
@@ -225,24 +209,33 @@ def extract_graph(
             G.add_edge(node_id, child_id)
     if token_dict:
         for node in G.nodes:
-            node_type = G.nodes[node]["type"] 
-            G.nodes[node]["type"] = token_dict[node_type]
+            node_type = G.nodes[node]["type"]
+            G.nodes[node]["type"] = str(token_dict[node_type])
     return G, leaves, name
+
+
+def find_more_leaves(G: nx.DiGraph):
+    leaves = [x for x in G.nodes() if G.out_degree(x) == 0 and G.in_degree(x) >= 1]
+    for leaf in leaves:
+        # HACK: we need to do this to avoid empty tokens
+        if not G.nodes[leaf]["desc"]:
+            G.nodes[leaf]["desc"] = G.nodes[leaf]["type"]
+    return G, leaves
 
 
 # mirror original extractSingleFile
 def extract_entry_file(file_path, args, token_dict: dict = None):
     graph, leaves, name = extract_graph(file_path, token_dict)
     separator = " "
-    # if args.pretty_print:
-    #     separator = "\n\t"
+    if len(leaves) > args.max_leaves:  # XXX: should be a parameters
+        leaves = random.sample(leaves, args.max_leaves)
+    if len(leaves) < 2:
+        graph, leaves = find_more_leaves(graph)
     features = generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )
-    if not features:
-        return None
     # TODO separators as args
-    return "\n" + name + separator + separator.join(features)
+    return name + separator + separator.join(features) + "\n"
     # TODO should log how many were skipped
 
 
@@ -250,8 +243,6 @@ def extract_file_features(file, args):
     """
     This only works with our Entries, which are each a sepparate file
     """
-    if not file.endswith(".dag"):
-        return
     entry_file = os.path.join(args.dir, file)
     tmp_file = os.path.join(args.tmpdir, str(os.getpid()))
     LOG_FILE = os.path.join(args.logdir, str(os.getpid()))
@@ -331,6 +322,6 @@ if __name__ == "__main__":
         extract_dir(args)
     else:
         # Debug
-        args.dir = ".\\stdlib\\code2vec\\train\\"
-        args.tmpdir = "D:\\Nik\\Projects\\mlfmf-poskusi\\tmp\\debug\\"
+        args.dir = ".data/raw/stdlib/test"
+        args.tmpdir = "tmp/debug"
         extract_dir(args)

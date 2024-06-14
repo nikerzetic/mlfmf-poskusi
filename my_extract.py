@@ -13,6 +13,58 @@ import entries_extractor as ee
 import multiprocessing as mp
 
 
+def single_thread_extract_dir(dir: str, args):
+    library_dir = os.path.dirname(os.path.dirname(os.path.abspath(dir)))
+    with open(
+        os.path.join(library_dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
+        type2id = json.load(f)
+
+    to_print = []
+    for file in tqdm.tqdm(os.listdir(args.dir)):
+        if not file.endswith(".dag"):
+            continue
+        file_path = os.path.join(args.dir, file)
+        result = ee.extract_entry_file(file_path, args, type2id)
+        to_print.append(result)
+
+    print("Writing output to file...")
+    with open(args.out_file, "w", encoding="utf-8") as f:
+        f.writelines(to_print)
+
+
+def new_extract_dir(dir, args):
+    with open(
+        os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
+        type2id = json.load(f)
+
+    # TODO: batch load entries if neccessary
+    entries_dir = os.path.join(dir, "entries")
+    entries = helpers.load_entries(entries_dir)
+
+    manager = mp.Manager()
+    q = manager.Queue()
+    type_dict = manager.dict(type2id)
+
+    pool = mp.get_context("spawn").Pool(
+        int(args.num_threads)
+    )  # TODO: number of processes
+    writer = pool.apply_async(write_queue_to_file, (args.out_file, q))
+
+    jobs = []
+    for file in os.listdir(args.dir):
+        job = pool.apply_async(extract_entry_file_to_queue, (file, q, args, type_dict))
+        jobs.append(job)
+
+    for job in tqdm.tqdm(jobs):
+        job.get()
+
+    q.put("\t\t\tkill")
+    pool.close()
+    pool.join()
+
+
 def get_immediate_subdirectories(a_dir):
     return [
         (os.path.join(a_dir, name))
@@ -61,7 +113,9 @@ def extract_entry_file_to_queue(file: str, q: mp.Queue, args, type_dict: dict):
 
 def extract_dir(dir, args):  # TODO recursive extract dir
     # TODO: dictionary
-    with open(os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8") as f:
+    with open(
+        os.path.join(dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
+    ) as f:
         type2id = json.load(f)
     subdirs = get_immediate_subdirectories(dir)
     to_extract = (
@@ -96,7 +150,7 @@ def main(args):
         "Extracting " + args.dir + f" with total files {len(os.listdir(args.dir))}"
     )
 
-    extract_dir(args.dir, args)
+    single_thread_extract_dir(args.dir, args)
 
     stop = time.time()
     helpers.write_log(f"Done extracting {args.dir} in {round((stop - start)/60)} min")
@@ -110,6 +164,7 @@ if __name__ == "__main__":
         dest="max_path_length",
         required=False,
         default=8,
+        type=int,
     )
     parser.add_argument(
         "-maxwidth",
@@ -117,9 +172,15 @@ if __name__ == "__main__":
         dest="max_path_width",
         required=False,
         default=2,
+        type=int,
     )
     parser.add_argument(
-        "-threads", "--num_threads", dest="num_threads", required=False, default=64
+        "-threads",
+        "--num_threads",
+        dest="num_threads",
+        required=False,
+        default=64,
+        type=int,
     )
     # TODO: change to something more appropriate
     parser.add_argument("-j", "--jar", dest="jar", required=False)
@@ -133,7 +194,15 @@ if __name__ == "__main__":
         default=3,
         type=int,
     )
-    parser.add_argument("-out_file", "--out_file", dest="out_file", required=True)
+    parser.add_argument("-out_file", "--out_file", dest="out_file", required=False)
+    parser.add_argument(
+        "-max_leaves",
+        "--max_leaves",
+        dest="max_leaves",
+        required=False,
+        default=500,
+        type=int,
+    )
 
     args = parser.parse_args()
     helpers.write_log(
@@ -141,15 +210,21 @@ if __name__ == "__main__":
     )
 
     if args.file is not None:
-        command = (
-            "python "
-            + " entries_extractor.py --max_path_length "
-            + str(args.max_path_length)
-            + " --max_path_width "
-            + str(args.max_path_width)
-            + " --file "
-            + args.file
-        )
-        os.system(command)
+        pass
+        # command = (
+        #     "python "
+        #     + " entries_extractor.py --max_path_length "
+        #     + str(args.max_path_length)
+        #     + " --max_path_width "
+        #     + str(args.max_path_width)
+        #     + " --file "
+        #     + args.file
+        # )
+        # os.system(command)
     elif args.dir is not None:
+        main(args)
+    else:
+        # Debug
+        args.dir = "data/raw/stdlib/code2vec/test"
+        args.out_file = "tmp/debug.txt"
         main(args)

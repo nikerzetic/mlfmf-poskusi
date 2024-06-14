@@ -1,6 +1,7 @@
-data_folder: ./data/code2class/stdlib
+data_folder: ./data/code2seq/stdlib
 
-checkpoint: null
+checkpoint: ./lightning_logs/version_0/checkpoints/epoch=1-step=827.ckpt
+# checkpoint: false
 
 seed: 42
 progress_bar_refresh_rate: 1
@@ -12,56 +13,59 @@ wandb:
   offline: true
 
 data:
-  # 0 workers runs on GPU
-  num_workers: 0
+  num_workers: 4
 
   # For classification, labels_count and max_label_parts should be 1
   # Each token appears at least 10 times (99.2% coverage)
   labels_count: 1
-  max_label_parts: 1
+  max_label_parts: 10 # 14 - 99% coverage, 10 - 92% coverage, 9 - 86% coverage
   # Each token appears at least 1000 times (99.5% coverage)
-  tokens_count: 5
-  max_token_parts: 7
-  path_length: 9
+  tokens_count: 1
+  max_token_parts: 4 # 4 - 99% coverage, 3 - 97% coverage
+  path_length: 10
 
   max_context: 200
   random_context: true
 
-  batch_size: 512
-  test_batch_size: 768
+  batch_size: 32
+  test_batch_size: 128
 
 model:
   # Encoder
   embedding_size: 128
+  # embedding_size: 128
   encoder_dropout: 0.25
+  # encoder_dropout: 0.25
   encoder_rnn_size: 128
+  # encoder_rnn_size: 128
   use_bi_rnn: true
   rnn_num_layers: 1
 
   # Decoder
-  # Code2Class
-  classifier_size: 128 
-  classifier_layers: 2
-  activation: "relu"
-  # Code2Seq
   decoder_size: 128 
   decoder_num_layers: 1
   rnn_dropout: 0.5
+  # rnn_dropout: 0.5
 
 optimizer:
   optimizer: "Momentum"
   nesterov: true
   lr: 0.01
   weight_decay: 0
-  decay_gamma: 0.95
+  decay_gamma: 0.2
 
 train:
-  dev_run_n: false # false to not run in dev mode
+  dev_run_n: false # false to not run in dev mode; or an int to run for that many epoch
   n_gpus: 1
-  n_epochs: 10
-  patience: 10
-  clip_norm: 5
-  teacher_forcing: 1.0
+  n_epochs: 2
+  patience: 2 # Decreases learning rate after stagnating for [patience] epochs
+  clip_norm: 1
+  # clip_norm: 5
+  teacher_forcing: 1.0 # 1.0 means no teacher forcing
   val_every_epoch: 1
   save_every_epoch: 1
-  log_every_n_steps: 1
+  log_every_n_steps: 5
+
+predict:
+  embeddings_path: data/embeddings/code2seq/stdlib.tsv # TODO: makedir
+  compare_path: data/raw/stdlib/predictions_comparison.tsv
