@@ -13,14 +13,17 @@ import entries_extractor as ee
 import multiprocessing as mp
 
 
-def single_thread_extract_dir(dir, args):
+def single_thread_extract_dir(dir: str, args):
+    library_dir = os.path.dirname(os.path.dirname(os.path.abspath(dir)))
     with open(
-        os.path.join("stdlib", "dictionaries", "type2id.json"), "r", encoding="utf-8"
+        os.path.join(library_dir, "dictionaries", "type2id.json"), "r", encoding="utf-8"
     ) as f:
         type2id = json.load(f)
 
     to_print = []
     for file in tqdm.tqdm(os.listdir(args.dir)):
+        if not file.endswith(".dag"):
+            continue
         file_path = os.path.join(args.dir, file)
         result = ee.extract_entry_file(file_path, args, type2id)
         to_print.append(result)
@@ -191,7 +194,7 @@ if __name__ == "__main__":
         default=3,
         type=int,
     )
-    parser.add_argument("-out_file", "--out_file", dest="out_file", required=True)
+    parser.add_argument("-out_file", "--out_file", dest="out_file", required=False)
     parser.add_argument(
         "-max_leaves",
         "--max_leaves",
@@ -207,15 +210,21 @@ if __name__ == "__main__":
     )
 
     if args.file is not None:
-        command = (
-            "python "
-            + " entries_extractor.py --max_path_length "
-            + str(args.max_path_length)
-            + " --max_path_width "
-            + str(args.max_path_width)
-            + " --file "
-            + args.file
-        )
-        os.system(command)
+        pass
+        # command = (
+        #     "python "
+        #     + " entries_extractor.py --max_path_length "
+        #     + str(args.max_path_length)
+        #     + " --max_path_width "
+        #     + str(args.max_path_width)
+        #     + " --file "
+        #     + args.file
+        # )
+        # os.system(command)
     elif args.dir is not None:
+        main(args)
+    else:
+        # Debug
+        args.dir = "data/raw/stdlib/code2vec/test"
+        args.out_file = "tmp/debug.txt"
         main(args)
