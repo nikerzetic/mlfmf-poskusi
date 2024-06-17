@@ -21,6 +21,7 @@ def test_format_as_label():
     - *|monoid
     - x|∼|y|
     """
+    import helpers
     import entries_extractor as ee
 
     test_cases = {
@@ -34,11 +35,13 @@ def test_format_as_label():
         "Algebra.Bundles.IdempotentSemiring._.*-isMagma 2576": "*|is|magma",
         "Algebra.Bundles.CommutativeRing._.*-isCommutativeMonoid 3694": "*|is|commutative|monoid",
         "Algebra.Bundles.Quasiring.*-monoid 2994": "*|monoid",
+        "Data.Nat.Properties.∣m+n-m+o∣≡∣n-o| 6516": "",
         'x∼y"': "x|∼|y|",
     }
     results = {}
     for word in test_cases:
         label = ee.format_as_label(word)
+        label = helpers.replace_unicode_with_latex(label)
         print(label)
         if label == test_cases[word]:
             continue
@@ -53,6 +56,7 @@ def test_replace_unicode_with_latex():
         "Data.Nat.Solver.+-*-Solver.-H_ 66": "-|h|_",
         "Data.Nat.Properties._._.¬Pn<1+v 6410": "\lnot|pn|<|1|+|v",
         'x∼y"': "x|\sim|y",
+        "Data.Nat.Properties.∣m+n-m+o∣≡∣n-o| 6516": "",
     }
 
     results = {}
@@ -67,4 +71,5 @@ def test_replace_unicode_with_latex():
 
 if __name__ == "__main__":
     # test_generate_path_features_for_function()
-    test_replace_unicode_with_latex()
+    # test_replace_unicode_with_latex()
+    test_format_as_label()

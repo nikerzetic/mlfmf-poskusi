@@ -117,8 +117,6 @@ def execute(mode: str, config: DictConfig):
     if "test" in mode:
         test(trainer, data_module, model)
     if "predict" in mode:
-        # Predict model
-        model = Code2Seq.load_from_checkpoint(config.checkpoint)
         predict(trainer, data_module, model, config.predict.embeddings_path, config.predict.compare_path)
 
 
@@ -137,9 +135,9 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv += [
             "--config",
-            "D:\\Nik\\Projects\\mlfmf-poskusi\\code2seq-config.yaml",
+            "./code2seq-config.yaml",
             "--mode",
-            "predict",
+            "train,test",
         ]
     __args = __arg_parser.parse_args()
 

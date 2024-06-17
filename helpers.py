@@ -138,14 +138,15 @@ def try_unzip(zip_file, entry_dir):
 
 def _library_paths(library_name: str):
     """
-    Returns the following strings:
-    - "library_name/entries"
-    - "library_name/entries.zip"
-    - "library_name/network.csv"
+    Returns the following paths (using os.path.join):
+    - "data/raw/library_name/entries"
+    - "data/raw/library_name/entries.zip"
+    - "data/raw/library_name/network.csv"
     """
-    entry_dir = f"{library_name}/entries"
-    zip_file = f"{library_name}/entries.zip"
-    network_file = f"{library_name}/network.csv"
+    dir = os.path.abspath(os.path.join("data", "raw", library_name))
+    entry_dir = os.path.join(dir, "entries")
+    zip_file = os.path.join(dir, "entries.zip")
+    network_file = os.path.join(dir, "network.csv")
     return entry_dir, zip_file, network_file
 
 
@@ -335,7 +336,7 @@ def reindex_library_asts(library_name):
             f.write(str(entry))
 
 
-def generate_report():
+def generate_report(library_path: str):
     import math
     import pandas as pd
 
@@ -347,13 +348,12 @@ def generate_report():
     max_entry = None
     functions = 0
     function_paths = 0
-    library = "D:\\Nik\\Projects\\mlfmf-poskusi\\stdlib"
-    entries_dir = os.path.join(library, "entries")
-    log = open(os.path.join(library, "entries_stats.tsv"), "w", encoding="utf-8")
+    entries_dir = os.path.join(library_path, "entries")
+    log = open(os.path.join(library_path, "entries_stats.tsv"), "w", encoding="utf-8")
     log.write("file_name\tentry_type\tnum_nodes\tnum_edges\tnum_leaves\tnum_names")
 
     labels_dict = {}
-    with open(os.path.join(library, "nodes.tsv"), "r", encoding="utf-8") as f:
+    with open(os.path.join(library_path, "nodes.tsv"), "r", encoding="utf-8") as f:
         f.readline()
         for line in f:
             parts = line.split("\t")
@@ -445,6 +445,8 @@ def generate_report():
 
 
 def write_log(message, log=os.path.abspath("./logs/main.txt")):
+    log_dir = os.path.dirname(log)
+    os.makedirs(log_dir, exist_ok=True)
     with open(log, "a", encoding="utf-8") as LOG:
         print(datetime.datetime.now().strftime("[%Y-%m-%d %H:%M]: "), message, file=LOG)
 
@@ -546,6 +548,19 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
 
 
 def tokenization(library: str, save_to_file: bool = False):
+    """
+    Creates tokenization dictionaries for converting types to id.
+    
+    ## Parameters
+    - library: library name; path automatically configured to ./data/raw/library
+    - save_to_file: default False; if set to True, the dictionaries will be saved to
+        - ./library/dictionaries/type2id.json
+        - ./library/dictionaries/id2type.json
+
+    ## Returns
+    - type2id
+    - id2type
+    """
     counter = 0
     type2id = {}
     id2type = {}
@@ -559,7 +574,7 @@ def tokenization(library: str, save_to_file: bool = False):
                 type2id[type] = counter
                 id2type[counter] = type
     if save_to_file:
-        dict_path = os.path.join(library, "dictionaries")
+        dict_path = os.path.join("data", "raw", library, "dictionaries")
         os.makedirs(dict_path, exist_ok=True)
         with open(os.path.join(dict_path, "type2id.json"), "w", encoding="utf-8") as f:
             json.dump(type2id, f)
@@ -691,14 +706,14 @@ if __name__ == "__main__":
     #     print(lib)
     #     entries, network = load_library(lib)
     #     print()
-    # split_network_into_nodes_and_links(
-    #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+        # split_network_into_nodes_and_links(
+        #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
 
     # print(invalid_contexts_in_file("D:\\Nik\\Projects\\mlfmf-poskusi\\data\\stdlib\\stdlib.train.raw.txt"))
 
     # _, _ = load_library("stdlib")
-    # probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.2, 0.2)
     # reindex_library_asts("stdlib")
+    # probibalistic_copy_entries_into_train_val_test_directories("stdlib", 0.1, 0.1)
 
     # missing = consolidate_missing_symbols_to_dict()
     # for key, value in missing.items():
@@ -707,4 +722,7 @@ if __name__ == "__main__":
 
     # create_dictionaries("stdlib", True)
     # tokenization("stdlib", True)
-    count_tokens_in_file("data/code2seq/stdlib/predict.c2s")
+    # count_tokens_in_file("data/code2seq/stdlib/predict.c2s")
+    split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
+    generate_report("data/raw/stdlib")
+

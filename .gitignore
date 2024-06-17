@@ -179,4 +179,7 @@ java-small.tar
 report.txt
 lightning_logs/
 checkpoints/
-code2seq-master/
+code2vec-master/
+venv2/
+*.pdf
+*.html
