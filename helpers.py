@@ -214,8 +214,14 @@ def _check_dirs_exist_or_create(dirs_list):
             os.makedirs(dir)
 
 
-def _code2vec_train_val_test_dirs(path):
-    new_dir = os.path.join(path, "code2vec")
+def _code2seq_train_val_test_dirs(path):
+    """
+    Returns the strings:
+    - path/code2seq/train
+    - path/code2seq/val
+    - path/code2seq/test
+    """
+    new_dir = os.path.join(path, "code2sec")
     train_dir = os.path.join(new_dir, "train")
     val_dir = os.path.join(new_dir, "val")
     test_dir = os.path.join(new_dir, "test")
@@ -232,7 +238,7 @@ def copy_entries_into_train_val_test_directories(
     # TODO: test for overlap of masks
     # TODO: ensure ordered lists
     entry_dir, _, _ = _library_paths(library_name)
-    train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
+    train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(
         os.path.dirname(os.path.abspath(entry_dir))
     )
     _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
@@ -260,7 +266,7 @@ def probibalistic_copy_entries_into_train_val_test_directories(
             "The probabilities sum up to {}".format(val_probability + test_probability)
         )
     entry_dir, _, _ = _library_paths(library_name)
-    train_dir, val_dir, test_dir = _code2vec_train_val_test_dirs(
+    train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(
         os.path.dirname(os.path.abspath(entry_dir))
     )
     _check_dirs_exist_or_create([train_dir, val_dir, test_dir])
@@ -334,114 +340,6 @@ def reindex_library_asts(library_name):
         reindex_entry(entry, current_id)
         with open(os.path.join(entry_dir, file), "w", encoding="utf-8") as f:
             f.write(str(entry))
-
-
-def generate_report(library_path: str):
-    import math
-    import pandas as pd
-
-    leaves = 0
-    entries = 0
-    paths = 0
-    name_paths = 0
-    max_leaves = 0
-    max_entry = None
-    functions = 0
-    function_paths = 0
-    entries_dir = os.path.join(library_path, "entries")
-    log = open(os.path.join(library_path, "entries_stats.tsv"), "w", encoding="utf-8")
-    log.write("file_name\tentry_type\tnum_nodes\tnum_edges\tnum_leaves\tnum_names")
-
-    labels_dict = {}
-    with open(os.path.join(library_path, "nodes.tsv"), "r", encoding="utf-8") as f:
-        f.readline()
-        for line in f:
-            parts = line.split("\t")
-            labels_dict[str(parts[0])] = eval(parts[1])
-
-    print("Calculating total number of paths...")
-    for file in tqdm.tqdm(os.listdir(entries_dir)):
-        if not file.endswith(".dag"):
-            continue
-        entries += 1
-        entry_nodes = 0
-        entry_edges = 0
-        entry_leaves = 0
-        entry_names = 0
-        with open(os.path.join(entries_dir, file), "r", encoding="utf-8") as f:
-            f.readline()  # id, type, description, children ids
-            name = None
-            for line in f:
-                entry_nodes += 1
-                parts = line.split("\t")
-                node_type = parts[1]
-                node_children = eval(parts[3])
-
-                if not node_children:
-                    leaves += 1
-                    entry_leaves += 1
-                else:
-                    entry_edges += len(node_children)
-                if node_type == ":name":
-                    if not name:
-                        name = str(parts[2]).replace('"', "")
-                    entry_names += 1
-
-        entry_type = labels_dict[name]["label"].replace(":", "")
-
-        if entry_type == "function":
-            functions += 1
-            function_paths += math.factorial(entry_leaves - 1)
-            # if function_paths_carry >= BILLION:
-            #     function_paths_billions += function_paths_carry // BILLION
-            #     function_paths_carry = function_paths_carry % BILLION
-
-        log.write(
-            f"\n{file}\t{entry_type}\t{entry_nodes}\t{entry_edges}\t{entry_leaves}\t{entry_names}"
-        )
-        paths += math.factorial(entry_leaves - 1)
-        name_paths += math.factorial(entry_names - 1)
-        # if paths_carry >= BILLION:
-        #     paths_billions += paths_carry // BILLION
-        #     paths_carry = paths_carry % BILLION
-        # if name_paths_carry >= BILLION:
-        #     name_paths_billions += name_paths_carry // BILLION
-        #     name_paths_carry = name_paths_carry % BILLION
-        if entry_leaves > max_leaves:
-            max_leaves = entry_leaves
-            max_entry = file
-
-    log.close()
-
-    print("Making numbers printable...")
-    paths_power = 0
-    name_paths_power = 0
-    function_paths_power = 0
-    while paths > 10:
-        paths_power += 1
-        paths = paths // 10
-    while name_paths > 10:
-        name_paths_power += 1
-        name_paths = name_paths // 10
-    while function_paths > 10:
-        function_paths_power += 1
-        function_paths = function_paths // 10
-
-    print(
-        "-------REPORT-------",
-        "\nTotal number of leaves: ",
-        leaves,
-        f"\n\tOn average {leaves / entries} leaves for each entry.",
-        "\n\tMax leaves: ",
-        max_leaves,
-        "\n\tEntry with most leaves: ",
-        max_entry,
-        f"\nTotal paths (billions): {paths} * 10^{paths_power}",
-        f"\nTotal paths between :name entries (billions): {name_paths} * 10^{name_paths_power}",
-        f"\nTotal paths in :function entries (billions): {function_paths} * 10^{function_paths_power}",
-        "\n\tTotal :function entries: ",
-        functions,
-    )
 
 
 def write_log(message, log=os.path.abspath("./logs/main.txt")):
@@ -550,7 +448,7 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
 def tokenization(library: str, save_to_file: bool = False):
     """
     Creates tokenization dictionaries for converting types to id.
-    
+
     ## Parameters
     - library: library name; path automatically configured to ./data/raw/library
     - save_to_file: default False; if set to True, the dictionaries will be saved to
@@ -683,22 +581,227 @@ def count_tokens_in_file(file_path: str):
                 total_each["token"].append(token_parts)
     print(
         "Max parts:",
-        "\n\tLabel:", max_parts["label"],
-        "\n\t\t", max_values["label"],
-        "\n\tToken:", max_parts["token"],
-        "\n\t\t", max_values["token"],
-        "\n\tPath:", max_parts["path"],
-        "\n\t\t", max_values["path"],
+        "\n\tLabel:",
+        max_parts["label"],
+        "\n\t\t",
+        max_values["label"],
+        "\n\tToken:",
+        max_parts["token"],
+        "\n\t\t",
+        max_values["token"],
+        "\n\tPath:",
+        max_parts["path"],
+        "\n\t\t",
+        max_values["path"],
         "\nMean parts:",
-        "\n\tLabel:", np.mean(total_each["label"]),
-        "\n\tToken:", np.mean(total_each["token"]),
-        "\n\tPath:", np.mean(total_each["path"]),
+        "\n\tLabel:",
+        np.mean(total_each["label"]),
+        "\n\tToken:",
+        np.mean(total_each["token"]),
+        "\n\tPath:",
+        np.mean(total_each["path"]),
         "\nMedian parts:",
-        "\n\tLabel:", np.median(total_each["label"]),
-        "\n\tToken:", np.median(total_each["token"]),
-        "\n\tPath:", np.median(total_each["path"]),
-          )
+        "\n\tLabel:",
+        np.median(total_each["label"]),
+        "\n\tToken:",
+        np.median(total_each["token"]),
+        "\n\tPath:",
+        np.median(total_each["path"]),
+    )
 
+
+def create_entry_id_dictionary(
+    library_name: str, save_to_file: str = None
+) -> dict[str, int]:
+    """
+    Returns line numbers for
+    """
+    entries_dir = os.path.join("data", "raw", library_name)
+    train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(entries_dir)
+    name_to_line = {}
+    files = (
+        [os.path.join(train_dir, file_path) for file_path in os.listdir(train_dir)]
+        + [os.path.join(test_dir, file_path) for file_path in os.listdir(test_dir)]
+        + [os.path.join(val_dir, file_path) for file_path in os.listdir(val_dir)]
+    )
+
+    for line_number, entry in tqdm.tqdm(enumerate(files)):
+        file = os.path.join(entries_dir, entry)
+        with open(file, "r", encoding="utf-8") as f:
+            f.readline()
+            f.readline()
+            parts = f.readline().strip("\n").split("\t")
+            name = parts[2]
+            name_to_line[name] = line_number
+
+    if save_to_file:
+        to_print = [
+            f"\n{name}\t{line_number}" for name, line_number in name_to_line.items()
+        ]
+        with open(save_to_file, "w", encoding="utf-8") as f:
+            f.write("name\tline_number")
+            f.writelines(to_print)
+
+    return name_to_line
+
+
+def read_embeddings(
+    library_name: str, save_to_file: str = None
+) -> dict[str, list[int]]:
+    entries_dir = os.path.join("data", "raw", library_name)
+    embeddings_file_path = os.path.join(
+        "data", "embeddings", "code2seq", f"{library_name}.tsv"
+    )
+    train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(entries_dir)
+    embeddings = {}
+    files = (
+        [os.path.join(train_dir, file_path) for file_path in os.listdir(train_dir)]
+        + [os.path.join(test_dir, file_path) for file_path in os.listdir(test_dir)]
+        + [os.path.join(val_dir, file_path) for file_path in os.listdir(val_dir)]
+    )
+    embeddings_file = open(embeddings_file_path, "r", encoding="utf-8")
+    embeddings_file.readline()
+    for line, entry_file in tqdm.tqdm(zip(embeddings_file, files)):
+        with open(entry_file, "r", encoding="utf-8") as f:
+            f.readline()
+            f.readline()
+            name = f.readline().strip("\n").split("\t")[2]
+            embeddings[name] = line.strip("\n").split("\t")[1:]
+
+    embeddings_file.close()
+
+    if save_to_file:
+        to_print = [
+            f"\n{name}\t{line_number}" for name, line_number in embeddings.items()
+        ]
+        with open(save_to_file, "w", encoding="utf-8") as f:
+            f.write("name\tembedding")
+            f.writelines(to_print)
+
+    return embeddings
+
+
+def expand_tokenization_dictionary(
+    entry_node: EntryNode, tokenization_dictionary: dict
+):
+    if not entry_node.type in tokenization_dictionary["type2id"]:
+        current_id = tokenization_dictionary["current"]
+        tokenization_dictionary["type2id"][entry_node.type] = current_id
+        tokenization_dictionary["id2type"][current_id] = entry_node.type
+        tokenization_dictionary["current"] += 1
+
+
+def expand_and_reindex_entry(
+    entry: Entry, starting_id: int, tokenization_dictionary: dict
+):
+    """
+    Expands entry by adding children `:name` nodes to `:bound` nodes,
+    transfers the `desc` from `:bound` to `:name` node, reindexes the entry with BFS,
+    and creates a tokenization dictionary.
+    """
+    current_id = starting_id
+    entry.root.id = current_id
+    queue = [entry.root]
+    while queue:
+        current_node = queue.pop(0)
+        expand_tokenization_dictionary(current_node, tokenization_dictionary)
+        if current_node.type == ":bound":
+            name_node = EntryNode(0, ":name", current_node.description)
+            current_node.description = ""
+            current_node.add_children([name_node])
+        for child in current_node.children:
+            current_id += 1
+            child.id = current_id
+            queue.append(child)
+
+
+def randomly_assign_entry_to_train_test_val(
+    file: str,
+    entry: Entry,
+    val_probability: float,
+    test_probability: float,
+    counters: dict[str, int],
+    target_dir: str,
+):
+    if val_probability + test_probability > 1:
+        raise ValueError(
+            "The probabilities sum up to {}".format(val_probability + test_probability)
+        )
+
+    u = random.random()
+    if u <= val_probability:
+        dest = "val"
+    elif u <= val_probability + test_probability:
+        dest = "test"
+    else:
+        dest = "train"
+    counters[dest] = counters.get(dest, 0) + 1
+    with open(os.path.join(target_dir, dest, file), "w", encoding="utf-8") as f:
+        f.write(str(entry))
+
+
+def prepare_and_copy(library_name: str, target_dir: str, tokenization_dictionary: dict):
+    print(f"Preparing library {library_name}...")
+    entry_dir, _, _ = _library_paths(library_name)
+    counters = {}
+    for file in tqdm.tqdm(os.listdir(entry_dir)):
+        if not file.endswith(".dag"):
+            continue
+        entry = load_entry(os.path.join(entry_dir, file))
+
+        # Expand ASTs by adding children :name nodes to :bound nodes, and transfer the desc from :bound to :name
+        # Reindex ASTs with BFS
+        current_id = 0  # TODO: rethink this
+        # current_id = entry.root.children[0].id
+        expand_and_reindex_entry(entry, current_id, tokenization_dictionary)
+
+        # Copy entries into train, test, val directories
+        randomly_assign_entry_to_train_test_val(
+            file, entry, 0.1, 0.1, counters, target_dir
+        )
+
+    print(
+        f"\nTotal count:\n\tTrain:",
+        counters["train"],
+        "\n\tVal:",
+        counters["val"],
+        "\n\tTest:",
+        counters["test"],
+    )
+
+
+def prepare_and_combine_libraries(libraries: list[str], combined_name: str):
+    dir = os.path.join("data", "raw", combined_name)
+    os.makedirs(dir, exist_ok=True)
+
+    # Check for missing symbols
+
+    code2seq_dir = os.path.join(dir, "code2sec")
+    # Prepare directory for a fresh copy of data
+    if os.path.isdir(code2seq_dir):
+        shutil.rmtree(code2seq_dir)   
+    os.makedirs(os.path.join(code2seq_dir, "train"))
+    os.makedirs(os.path.join(code2seq_dir, "test"))
+    os.makedirs(os.path.join(code2seq_dir, "val"))
+   
+    for library in libraries:
+        # Dictionary for type tokenization
+        tokenization_dictionary = {
+            "type2id": {},
+            "id2type": {},
+            "current": 0,
+        }
+        # Expand ASTs by adding children :name nodes to :bound nodes, and transfer the desc from :bound to :name
+        # Reindex ASTs with BFS
+        # Copy entries into train, test, val directories
+        prepare_and_copy(library, code2seq_dir, tokenization_dictionary)
+
+    dict_path = os.path.join("data", "raw", combined_name, "dictionaries")
+    os.makedirs(dict_path, exist_ok=True)
+    with open(os.path.join(dict_path, "type2id.json"), "w", encoding="utf-8") as f:
+        json.dump(tokenization_dictionary["type2id"], f)
+    with open(os.path.join(dict_path, "id2type.json"), "w", encoding="utf-8") as f:
+        json.dump(tokenization_dictionary["id2type"], f)
 
 
 if __name__ == "__main__":
@@ -706,8 +809,8 @@ if __name__ == "__main__":
     #     print(lib)
     #     entries, network = load_library(lib)
     #     print()
-        # split_network_into_nodes_and_links(
-        #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
+    # split_network_into_nodes_and_links(
+    #     f"D:\\Nik\\Projects\\mlfmf-poskusi\\{lib}\\network.csv")
 
     # print(invalid_contexts_in_file("D:\\Nik\\Projects\\mlfmf-poskusi\\data\\stdlib\\stdlib.train.raw.txt"))
 
@@ -723,6 +826,8 @@ if __name__ == "__main__":
     # create_dictionaries("stdlib", True)
     # tokenization("stdlib", True)
     # count_tokens_in_file("data/code2seq/stdlib/predict.c2s")
-    split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
-    generate_report("data/raw/stdlib")
-
+    # split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
+    # generate_report("data/raw/stdlib")
+    prepare_and_combine_libraries(
+        ["stdlib", "TypeTopology", "unimath"], "agda"
+    )
