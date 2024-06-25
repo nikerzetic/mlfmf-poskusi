@@ -221,7 +221,7 @@ def _code2seq_train_val_test_dirs(path):
     - path/code2seq/val
     - path/code2seq/test
     """
-    new_dir = os.path.join(path, "code2sec")
+    new_dir = os.path.join(path, "code2seq")
     train_dir = os.path.join(new_dir, "train")
     val_dir = os.path.join(new_dir, "val")
     test_dir = os.path.join(new_dir, "test")
@@ -405,6 +405,27 @@ def replace_unicode_with_latex(s: str):
                 add_to_missing_symbols_file(c)
             new_s.append(new_c.strip())
     return "".join(new_s)
+
+
+def find_missing_symbols_in_file(file: str, missing_symbols: set[str]):
+    f = open(file, "r", encoding="utf-8")
+    for line in f:
+        for c in line.strip("\n"):
+            if c.isascii():
+                continue
+            if c in unicode_to_latex:
+                continue
+            missing_symbols.add(c)
+    f.close()
+
+
+def find_missing_symbols_in_dir(dir: str) -> list[str]:
+    print(f"Finding missing symbols in {dir}...")
+    missing_symbols = set()
+    for path, _, files in os.walk(os.path.abspath(dir)):
+        for file in tqdm.tqdm(files):
+            find_missing_symbols_in_file(os.path.join(path, file), missing_symbols)
+    return missing_symbols
 
 
 def create_dictionaries(library_name: str, save_to_file: bool = False):
@@ -776,14 +797,14 @@ def prepare_and_combine_libraries(libraries: list[str], combined_name: str):
 
     # Check for missing symbols
 
-    code2seq_dir = os.path.join(dir, "code2sec")
+    code2seq_dir = os.path.join(dir, "code2seq")
     # Prepare directory for a fresh copy of data
     if os.path.isdir(code2seq_dir):
-        shutil.rmtree(code2seq_dir)   
+        shutil.rmtree(code2seq_dir)
     os.makedirs(os.path.join(code2seq_dir, "train"))
     os.makedirs(os.path.join(code2seq_dir, "test"))
     os.makedirs(os.path.join(code2seq_dir, "val"))
-   
+
     for library in libraries:
         # Dictionary for type tokenization
         tokenization_dictionary = {
@@ -828,6 +849,9 @@ if __name__ == "__main__":
     # count_tokens_in_file("data/code2seq/stdlib/predict.c2s")
     # split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
     # generate_report("data/raw/stdlib")
-    prepare_and_combine_libraries(
-        ["stdlib", "TypeTopology", "unimath"], "agda"
-    )
+
+    # prepare_and_combine_libraries(
+    #     ["stdlib", "TypeTopology", "unimath"], "agda"
+    # )
+
+    print(find_missing_symbols_in_dir("D:/Nik/Projects/mlfmf-poskusi/data/raw/agda/code2seq/"))
