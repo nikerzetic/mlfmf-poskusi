@@ -675,6 +675,7 @@ def read_embeddings(
     )
     train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(entries_dir)
     embeddings = {}
+    embeddings_size = None
     files = (
         [os.path.join(train_dir, file_path) for file_path in os.listdir(train_dir)]
         + [os.path.join(test_dir, file_path) for file_path in os.listdir(test_dir)]
@@ -687,16 +688,20 @@ def read_embeddings(
             f.readline()
             f.readline()
             name = f.readline().strip("\n").split("\t")[2]
-            embeddings[name] = line.strip("\n").split("\t")[1:]
+            embeddings[name] = line.strip("\n").split("\t")
+            if not embeddings_size:
+                embeddings_size = len(embeddings[name]) - 1
 
     embeddings_file.close()
 
     if save_to_file:
         to_print = [
-            f"\n{name}\t{line_number}" for name, line_number in embeddings.items()
+            "\t".join([f"\n{name}"] + e) for name, e in embeddings.items()
         ]
+        components = "\t".join([f"x{i}" for i in range(embeddings_size)])
         with open(save_to_file, "w", encoding="utf-8") as f:
-            f.write("name\tembedding")
+
+            f.write(f"name\tprocessed\tembedding\t{components}")
             f.writelines(to_print)
 
     return embeddings
@@ -805,13 +810,13 @@ def prepare_and_combine_libraries(libraries: list[str], combined_name: str):
     os.makedirs(os.path.join(code2seq_dir, "test"))
     os.makedirs(os.path.join(code2seq_dir, "val"))
 
+    # Dictionary for type tokenization
+    tokenization_dictionary = {
+        "type2id": {},
+        "id2type": {},
+        "current": 0,
+    }
     for library in libraries:
-        # Dictionary for type tokenization
-        tokenization_dictionary = {
-            "type2id": {},
-            "id2type": {},
-            "current": 0,
-        }
         # Expand ASTs by adding children :name nodes to :bound nodes, and transfer the desc from :bound to :name
         # Reindex ASTs with BFS
         # Copy entries into train, test, val directories
@@ -850,8 +855,8 @@ if __name__ == "__main__":
     # split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
     # generate_report("data/raw/stdlib")
 
-    # prepare_and_combine_libraries(
-    #     ["stdlib", "TypeTopology", "unimath"], "agda"
-    # )
+    prepare_and_combine_libraries(
+        ["stdlib", "TypeTopology", "unimath"], "agda"
+    )
 
-    print(find_missing_symbols_in_dir("D:/Nik/Projects/mlfmf-poskusi/data/raw/agda/code2seq/"))
+    # print(find_missing_symbols_in_dir("D:/Nik/Projects/mlfmf-poskusi/data/raw/agda/code2seq/"))

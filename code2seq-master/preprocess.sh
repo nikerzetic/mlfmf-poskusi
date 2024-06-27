@@ -21,17 +21,17 @@
 #   recommended to use a multi-core machine for the preprocessing 
 #   step and set this value to the number of cores.
 # PYTHON - python3 interpreter alias.
-TRAIN_DIR=data/raw/stdlib/code2vec/train
-VAL_DIR=data/raw/stdlib/code2vec/val
-TEST_DIR=data/raw/stdlib/code2vec/test
-DUMP_DIR=data/raw/stdlib/code2vec
-DATASET_NAME=stdlib
+TRAIN_DIR=data/raw/agda/code2seq/train
+VAL_DIR=data/raw/agda/code2seq/val
+TEST_DIR=data/raw/agda/code2seq/test
+DUMP_DIR=data/raw/agda/code2seq
+DATASET_NAME=agda
 MAX_DATA_CONTEXTS=1000
 MAX_CONTEXTS=200
 SUBTOKEN_VOCAB_SIZE=186277
 TARGET_VOCAB_SIZE=26347
 NUM_THREADS=32
-PYTHON=python3.11
+PYTHON=python
 ###########################################################
 
 DIR=data/code2seq/${DATASET_NAME}

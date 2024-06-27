@@ -3,6 +3,7 @@ import argparse
 import sys
 import torch
 import tqdm
+import os
 
 from typing import *
 from omegaconf import OmegaConf, DictConfig
@@ -50,6 +51,7 @@ def predict(
     trainer: L.Trainer,
     data_module: PathContextDataModule,
     model: Code2Class | Code2Seq,
+    embedding_size: int,
     embeddings_dump_file: str = None,
     predictions_dump_file: str = None,
 ):
@@ -63,8 +65,9 @@ def predict(
     # attention_weights: [ label_parts+1; batch_size; max contexts per label in batch (changes between batches)]
     # paths: [total contexts in batch (changes between batches); embedding_size]
     predictions = ["label\tprediction"]
+    os.makedirs(os.path.dirname(embeddings_dump_file), exist_ok=True)
     f = open(embeddings_dump_file, "w", encoding="utf-8")
-    columns = [f"x{i}" for i in range(-1,128)] #HACK: embedding size 
+    columns = [f"x{i}" for i in range(-1,embedding_size)] #HACK: embedding size 
     columns[0] = "label"
     f.write("\t".join(columns))
     print("Writing results to file...")
@@ -92,6 +95,7 @@ def predict(
     if not predictions_dump_file:
         return
 
+    os.makedirs(os.path.dirname(predictions_dump_file), exist_ok=True)
     with open(predictions_dump_file, "w", encoding="utf-8") as f:
         f.writelines(predictions)
             
@@ -117,7 +121,7 @@ def execute(mode: str, config: DictConfig):
     if "test" in mode:
         test(trainer, data_module, model)
     if "predict" in mode:
-        predict(trainer, data_module, model, config.predict.embeddings_path, config.predict.compare_path)
+        predict(trainer, data_module, model, config.model.encoder_rnn_size, config.predict.embeddings_path, config.predict.compare_path)
 
 
 if __name__ == "__main__":
