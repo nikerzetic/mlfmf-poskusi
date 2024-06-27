@@ -59,7 +59,7 @@ def generate_path(
     end_symbol=")",
     up_symbol="^",
     down_symbol="_",
-):
+) -> str:
 
     stack_s = get_tree_stack(G, s)
     stack_t = get_tree_stack(G, t)
@@ -71,6 +71,8 @@ def generate_path(
         return ""
 
     path = []
+    path.append(start_symbol + G.nodes[stack_s[0]]["type"] + end_symbol + up_symbol)
+
     for i in range(1, len(stack_s) - common_prefix):
         current_id = stack_s[i]
         child_id = stack_s[i - 1]
@@ -89,6 +91,8 @@ def generate_path(
         child_id = stack_t[i - 1]
         node_type = G.nodes[current_id]["type"]
         path.append(down_symbol + start_symbol + node_type + end_symbol)
+
+    path.append(start_symbol + G.nodes[stack_t[0]]["type"] + end_symbol + up_symbol)
 
     return "".join(path)  # Join is faster than +, because str is immutable
 
@@ -126,12 +130,110 @@ def generate_path_features_for_function(
     return features
 
 
+def random_pairs_without_repetition(iterable, key=None):
+    """
+    Lists all pairs, without repetition, remembering all the pairs seen.
+    """
+
+    seen = set()
+    seen_add = seen.add
+
+    def seen_contains(pair):
+        return pair in seen or (pair[1], pair[0]) in seen
+
+    for element in itertools.filterfalse(seen_contains, iterable):
+        seen_add(element)
+        yield element
+
+
+def generate_path_features_for_function(
+    G: nx.DiGraph, leaves: list[str], max_path_length, max_path_width
+):
+    features = []
+    for i in range(len(leaves)):
+        for j in range(i + 1, len(leaves)):
+            s = G.nodes[leaves[i]]
+            t = G.nodes[leaves[j]]
+            path = generate_path(
+                G,
+                leaves[i],
+                leaves[j],
+                max_path_length,
+                max_path_width,
+                start_symbol="",
+                end_symbol="",
+                up_symbol="|",
+                down_symbol="|",
+            )
+            if not path:
+                continue
+            features.append(
+                s["desc"]
+                + ","
+                + path
+                + ","
+                + t["desc"]
+                # s["desc"] + "," + str(hash_string(path)) + "," + t["desc"]
+            )  # TODO here we define the path separator
+            # TODO should be source, path, sink
+    return features
+
+
+def random_generate_path_features_for_function(
+    G: nx.DiGraph, leaves: list[str], max_path_length, max_path_width
+):
+    MAX_FEATURES = 1000  # TODO: as parameter
+
+    features = []
+    seen = set()
+    cap = 0  # HACK
+    while len(features) < MAX_FEATURES and cap < 10000:
+        cap += 1
+        # Randomly select two indices without repetition of paths
+        i = random.randint(0, len(leaves) - 1)
+        j = random.randint(0, len(leaves) - 1)
+        if i == j:
+            continue
+        # We only store ordered pairs to avoid searching twice
+        pair = (min(i, j), max(i, j))
+        if pair in seen:
+            continue
+        seen.add(pair)
+
+        # Continue as normal
+        s = G.nodes[leaves[i]]
+        t = G.nodes[leaves[j]]
+        path = generate_path(
+            G,
+            leaves[i],
+            leaves[j],
+            max_path_length,
+            max_path_width,
+            start_symbol="",
+            end_symbol="",
+            up_symbol="|",
+            down_symbol="|",
+        )
+        if not path:
+            continue
+        features.append(
+            s["desc"]
+            + ","
+            + path
+            + ","
+            + t["desc"]
+            # s["desc"] + "," + str(hash_string(path)) + "," + t["desc"]
+        )  # TODO here we define the path separator
+        # TODO should be source, path, sink
+    return features
+
+
 def format_as_label(
     s: str,
     trim_modules=False,
     separator="|",
     alt_separators: dict = {"|": "∣", ",": "，"},
-):
+) -> str:
     def append_lower_char(c: str):
         # Sometimes | and , appear in words
         # We check if the character appears in alt_separators, replace it if it does, or lower-case it
@@ -144,6 +246,8 @@ def format_as_label(
     if trim_modules:
         # We assume only the last part of each string is relavant (other are module imports)
         w = w.split(".")[-1]
+    if not w:
+        return ""
     new_s = []
     if len(w) == 1:
         append_lower_char(w)
@@ -163,6 +267,14 @@ def format_as_label(
             new_s.append(separator)
         if i + 1 == len(w) - 1:
             append_lower_char(w[i + 1])
+    if "" in new_s:
+        raise ValueError(
+            f"Produced empty subtoken:\n\tInput: {s}\n\tOutput: {new_s}\nThis may be caused by parsing in entries_extractor.format_as_label"
+        )
+    if " " in new_s:
+        raise ValueError(
+            f"Produced blank space subtoken:\n\tInput: {s}\n\tOutput: {new_s}\nThis may be caused by parsing in entries_extractor.format_as_label"
+        )
     # join is faster then str +=
     return "".join(new_s)
 
@@ -181,22 +293,30 @@ def extract_graph(
         node_id = int(parts[0])
         node_type = parts[1]
         node_description = parts[2]
+        formatted_description = helpers.replace_unicode_with_latex(
+            format_as_label(node_description, trim_modules=True)
+        )
         node_children = eval(parts[3])
         children[node_id] = node_children
         G.add_node(
             node_id,
-            type=node_type.replace(":", ""),
-            desc=helpers.replace_unicode_with_latex(
-                format_as_label(node_description, trim_modules=True)
-            ),
+            type=node_type,
+            # type=node_type.replace(":", ""),
+            desc=formatted_description,
         )
         is_leaf_node = not node_children
-        is_appropriate_type = node_type in [
-            ":name",
-            ":bound",
-            ":pattern-var",
-        ]  # XXX: but :bound and :arg-var are actual code, but not leaves
-        if is_leaf_node and is_appropriate_type:
+        nonempty_desc = not (
+            formatted_description is None or formatted_description in ["", " "]
+        )
+        is_appropriate_type = not node_type in [
+            ":max",
+        ]
+        # is_appropriate_type = node_type in [
+        #     ":name",
+        #     ":bound",
+        #     ":pattern-var",
+        # ]  # XXX: but :bound and :arg-var are actual code, but not leaves
+        if is_leaf_node and nonempty_desc and is_appropriate_type:
             leaves.append(node_id)
         if name:
             continue
@@ -227,13 +347,17 @@ def find_more_leaves(G: nx.DiGraph):
 def extract_entry_file(file_path, args, token_dict: dict = None):
     graph, leaves, name = extract_graph(file_path, token_dict)
     separator = " "
-    if len(leaves) > args.max_leaves:  # XXX: should be a parameters
-        leaves = random.sample(leaves, args.max_leaves)
+    if len(leaves) > args.max_leaves:
+        pass
+        # leaves = random.sample(leaves, args.max_leaves)
     if len(leaves) < 2:
         graph, leaves = find_more_leaves(graph)
-    features = generate_path_features_for_function(
+    features = random_generate_path_features_for_function(
         graph, leaves, int(args.max_path_length), int(args.max_path_width)
     )
+    # features = generate_path_features_for_function(
+    #     graph, leaves, int(args.max_path_length), int(args.max_path_width)
+    # )
     # TODO separators as args
     return name + separator + separator.join(features) + "\n"
     # TODO should log how many were skipped
