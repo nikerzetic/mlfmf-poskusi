@@ -47,5 +47,5 @@ def get_line_by_offset(file_path: str, offset: int) -> str:
     """
     with open(file_path, "r") as data_file:
         data_file.seek(offset)
-        line = data_file.readline().strip()
+        line = data_file.readline().strip("\n")
     return line
