@@ -22,7 +22,7 @@ class Vocabulary(BaseVocabulary):
 
     @staticmethod
     def _process_raw_sample(raw_sample: str, counters: Dict[str, CounterType[str]], context_seq: List[str]):
-        label, *path_contexts = raw_sample.split(" ")
+        label, *path_contexts = raw_sample.strip("\n").split(" ")
         counters[Vocabulary.LABEL].update(label.split(Vocabulary._separator))
         for path_context in path_contexts:
             for token, desc in zip(path_context.split(","), context_seq):
