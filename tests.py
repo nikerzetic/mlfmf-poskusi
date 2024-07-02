@@ -69,7 +69,48 @@ def test_replace_unicode_with_latex():
         results[word] = new
 
 
+def test_create_dictionaries():
+    import helpers
+
+    raw2label, label2raw = helpers.create_dictionaries("stdlib")
+    for name, label in raw2label.items():
+        print(name, label, sep="\n", end="\n\n")
+
+
+def test_dictionaries_and_embeddings():
+    import helpers
+    import json
+
+    missings_in_embeddings = []
+    missing_in_dictionaries = []
+
+    raw2label, label2raw = helpers.create_dictionaries("stdlib")
+    # f = open("data/raw/stdlib/dictionaries/raw2label.json", "r", encoding="utf-8")
+    # raw2label: dict = json.load(f)
+    # f.close()
+    label2raw = {v: k for k,v in raw2label.items()}
+
+    embeddings = helpers.read_embeddings("stdlib")
+
+    for name, label in raw2label.items():
+        if not label in embeddings:
+            missings_in_embeddings.append(name)
+
+    for label in embeddings:
+        if not label in label2raw:
+            missing_in_dictionaries.append(label)
+
+    if len(missings_in_embeddings):
+        print("Missing in embeddings:", len(missings_in_embeddings))
+        print("\n\t".join(missings_in_embeddings))
+    if len(missing_in_dictionaries):
+        print("\nMissing in dictionaries:", len(missing_in_dictionaries))
+        print("\n\t".join(missing_in_dictionaries))
+
+
 if __name__ == "__main__":
     # test_generate_path_features_for_function()
     # test_replace_unicode_with_latex()
-    test_format_as_label()
+    # test_format_as_label()
+    # test_create_dictionaries()
+    test_dictionaries_and_embeddings()

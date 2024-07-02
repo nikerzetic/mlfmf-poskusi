@@ -443,17 +443,28 @@ def create_dictionaries(library_name: str, save_to_file: bool = False):
     - label2raw: dictionary for converting labels to original names
     """
     print(f"Creating dictionaries for {library_name}...")
+    dir = os.path.join("data", "raw", library_name)
     raw2label = {}
     label2raw = {}
-    with open(os.path.join(library_name, "nodes.tsv"), "r", encoding="utf-8") as f:
+    with open(os.path.join(dir, "nodes.tsv"), "r", encoding="utf-8") as f:
         f.readline()
         for line in f:
-            name = line.split("\t")[0]
-            label = replace_unicode_with_latex(name).split(" ")[0]
+            parts = line.strip("\n").split("\t")
+            # HACK: the following nodes lack .dag files and won't have an embedding
+            if parts[1] in [
+                "{'label': ':external'}",
+                "{'label': ':external-module'}",
+                "{'label': ':module'}",
+                "{'label': ':library'}",
+                "{'label': ':external-library'}",
+            ]:
+                continue
+            name = parts[0]
+            label = replace_unicode_with_latex(ee.format_as_label(name))
             raw2label[name] = label
             label2raw[label] = name
     if save_to_file:
-        DICT_PATH = os.path.join(library_name, "dictionaries")
+        DICT_PATH = os.path.join(dir, "dictionaries")
         os.makedirs(DICT_PATH, exist_ok=True)
         with open(
             os.path.join(DICT_PATH, "raw2label.json"), "w", encoding="utf-8"
@@ -668,11 +679,22 @@ def create_entry_id_dictionary(
 
 def read_embeddings(
     library_name: str, save_to_file: str = None
-) -> dict[str, list[int]]:
+) -> tuple[dict[str, list[float]], int]:
+    """
+    ## Parameters
+    - library_name
+    - save_to_file: path to file for json dump
+
+    ## Returns
+    - embeddings: dictionary with labels as keys and embeddings as values (as list)
+    - embeddings_size
+    """
+    print(f"Reading embeddings for {library_name}...")
     entries_dir = os.path.join("data", "raw", library_name)
     embeddings_file_path = os.path.join(
         "data", "embeddings", "code2seq", f"{library_name}.tsv"
     )
+    predict_file_path = os.path.join("data", "code2seq", library_name, "predict.c2s")
     train_dir, val_dir, test_dir = _code2seq_train_val_test_dirs(entries_dir)
     embeddings = {}
     embeddings_size = None
@@ -682,29 +704,34 @@ def read_embeddings(
         + [os.path.join(val_dir, file_path) for file_path in os.listdir(val_dir)]
     )
     embeddings_file = open(embeddings_file_path, "r", encoding="utf-8")
+    predict_file = open(predict_file_path, "r", encoding="utf-8")
     embeddings_file.readline()
-    for line, entry_file in tqdm.tqdm(zip(embeddings_file, files)):
-        with open(entry_file, "r", encoding="utf-8") as f:
-            f.readline()
-            f.readline()
-            name = f.readline().strip("\n").split("\t")[2]
-            embeddings[name] = line.strip("\n").split("\t")
-            if not embeddings_size:
-                embeddings_size = len(embeddings[name]) - 1
-
+    for embeddings_line, predict_line in tqdm.tqdm(zip(embeddings_file, predict_file)):
+        label = predict_line.split(" ")[0]
+        embedding = embeddings_line.strip("\n").split("\t")[1:]
+        embeddings[label] = embedding
+        if not embeddings_size:
+            embeddings_size = len(embedding)
+    # for embeddings_line, entry_file in tqdm.tqdm(zip(embeddings_file, files)):
+    #     with open(entry_file, "r", encoding="utf-8") as f:
+    #         f.readline()
+    #         f.readline()
+    #         name = f.readline().strip("\n").split("\t")[2]
+    #         embeddings[name] = embeddings_line.strip("\n").split("\t")
+    #         if not embeddings_size:
+    #             embeddings_size = len(embeddings[name]) - 1
+    predict_file.close()
     embeddings_file.close()
 
     if save_to_file:
-        to_print = [
-            "\t".join([f"\n{name}"] + e) for name, e in embeddings.items()
-        ]
+        to_print = ["\t".join([f"\n{name}"] + e) for name, e in embeddings.items()]
         components = "\t".join([f"x{i}" for i in range(embeddings_size)])
         with open(save_to_file, "w", encoding="utf-8") as f:
 
             f.write(f"name\tprocessed\tembedding\t{components}")
             f.writelines(to_print)
 
-    return embeddings
+    return embeddings, embeddings_size
 
 
 def expand_tokenization_dictionary(
@@ -855,8 +882,6 @@ if __name__ == "__main__":
     # split_network_into_nodes_and_links("data/raw/stdlib/network.csv")
     # generate_report("data/raw/stdlib")
 
-    prepare_and_combine_libraries(
-        ["stdlib", "TypeTopology", "unimath"], "agda"
-    )
+    prepare_and_combine_libraries(["stdlib", "TypeTopology", "unimath"], "agda")
 
     # print(find_missing_symbols_in_dir("D:/Nik/Projects/mlfmf-poskusi/data/raw/agda/code2seq/"))
